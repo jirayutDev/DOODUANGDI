@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/chat", label: "แชทน้องมู" },
   { href: "/mu-book", label: "สมุดดวง" },
   { href: "/reading", label: "เปิดไพ่" },
+  { href: "/face-reading", label: "โหงวเฮ้ง" },
   { href: "/duang", label: "ทุกศาสตร์" },
   { href: "/mor-du", label: "หมอดู" },
   { href: "/membership", label: "สมาชิก" },
