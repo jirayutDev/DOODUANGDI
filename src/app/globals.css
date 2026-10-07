@@ -194,6 +194,14 @@
   animation: shuffle-bounce 0.6s ease-in-out infinite;
 }
 
+@keyframes face-scan {
+  0%, 100% { top: 4%; }
+  50% { top: 94%; }
+}
+@utility animate-face-scan {
+  animation: face-scan 1.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

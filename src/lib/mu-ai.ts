@@ -26,9 +26,14 @@ function getModelChain(): string[] {
   return [primary, ...fallbacks];
 }
 
+// content เป็น array ได้เมื่อต้องแนบรูป (ใช้กับฟีเจอร์สแกนหน้าดูโหงวเฮ้ง)
+type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 interface ChatMsg {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | ChatContentPart[];
 }
 
 async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: number): Promise<string> {
@@ -252,4 +257,107 @@ export async function generateTopicReading(input: TopicReadingInput): Promise<st
     reply ??
     `${input.topicName}${input.timeframe}ของคุณอยู่ในเกณฑ์ปกติดี ใจเย็นๆ ค่อยๆ ทำไปทีละขั้น ถ้าอยากรู้ลึกกว่านี้ลองคุยกับหมอดูตัวจริงในระบบดูนะ`
   );
+}
+
+// ---------- สแกนหน้าดูโหงวเฮ้ง (ต้องใช้โมเดลที่อ่านรูปได้) ----------
+// แยกสายโมเดลจากแชทปกติ เพราะ free models ส่วนใหญ่อ่านรูปไม่ได้
+function getVisionModelChain(): string[] {
+  const primary = process.env.OPENROUTER_VISION_MODEL || "anthropic/claude-haiku-4.5";
+  const fallbacks = (process.env.OPENROUTER_VISION_FALLBACK_MODELS ?? "google/gemini-2.5-flash")
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+  return [primary, ...fallbacks];
+}
+
+// แท็บที่หน้าผลลัพธ์ (ตามดีไซน์: ใบหน้า / ตา / ปาก / คิ้ว)
+export const FACE_PARTS = [
+  { key: "face", label: "ใบหน้า", meaning: "รูปหน้าตามธาตุ รวมหน้าผาก จมูก โหนกแก้ม คาง — นิสัยและดวงภาพรวม" },
+  { key: "eyes", label: "ตา", meaning: "ความรัก ความคิด จิตใจ" },
+  { key: "mouth", label: "ปาก", meaning: "วาจา เสน่ห์ บริวาร" },
+  { key: "eyebrows", label: "คิ้ว", meaning: "พี่น้อง มิตรสหาย ชื่อเสียง" },
+] as const;
+
+export type FacePartKey = (typeof FACE_PARTS)[number]["key"];
+
+export const FACE_ELEMENTS = ["ไม้", "ไฟ", "ดิน", "ทอง", "น้ำ"] as const;
+
+export interface FaceReadingResult {
+  element: string; // ธาตุของใบหน้า เช่น "ไฟ"
+  parts: { key: FacePartKey; label: string; reading: string }[];
+  advice: string;
+}
+
+export type FaceReadingOutcome =
+  | { ok: true; result: FaceReadingResult }
+  | { ok: false; reason: "no_face" | "unavailable" };
+
+function extractJson(text: string): unknown {
+  const cleaned = text.replace(/```(?:json)?/gi, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+function normalizeFaceReading(raw: unknown): FaceReadingOutcome | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (r.noFace === true) return { ok: false, reason: "no_face" };
+
+  const parts = (r.parts ?? {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const element = str(r.element).replace(/^ธาตุ/, "");
+  const result: FaceReadingResult = {
+    element: (FACE_ELEMENTS as readonly string[]).includes(element) ? element : "",
+    parts: FACE_PARTS.map((p) => ({ key: p.key, label: p.label, reading: str(parts[p.key]) })),
+    advice: str(r.advice),
+  };
+  // ต้องครบทุกแท็บถึงถือว่าใช้ได้ ไม่งั้นลองโมเดลถัดไป
+  if (result.parts.some((p) => !p.reading)) return null;
+  return { ok: true, result };
+}
+
+export async function generateFaceReading(imageDataUrl: string): Promise<FaceReadingOutcome> {
+  if (!process.env.OPENROUTER_API_KEY) return { ok: false, reason: "unavailable" };
+
+  const partSpec = FACE_PARTS.map((p) => `"${p.key}": ${p.label} (${p.meaning})`).join(", ");
+  const system = [
+    BASE_SYSTEM_PROMPT,
+    "งานตอนนี้: ดูโหงวเฮ้ง (นรลักษณ์ศาสตร์แบบจีน) จากรูปใบหน้าที่ผู้ใช้ส่งมา เพื่อความบันเทิงและเป็นกำลังใจ",
+    "ให้ดูเฉพาะรูปทรงและลักษณะส่วนต่างๆ ของใบหน้าตามตำราโหงวเฮ้ง แล้วตีความในเชิงบวก สร้างสรรค์ และให้กำลังใจ",
+    "ห้ามวิจารณ์ความสวยความหล่อ ห้ามพูดถึงน้ำหนัก สีผิว เชื้อชาติ อายุ เพศ หรือสุขภาพ ห้ามเดาตัวตนว่าเป็นใคร",
+    "ถ้าลักษณะไหนตามตำราถือว่าไม่ค่อยดี ให้พูดแบบนุ่มนวลเป็นข้อควรระวังพร้อมวิธีเสริม ไม่ใช่คำขู่",
+    "ถ้าในรูปไม่มีใบหน้าคนชัดเจน มีหลายคน หรือเป็นรูปการ์ตูน/รูปวาด ให้ตอบ {\"noFace\": true} เท่านั้น",
+    "ตอบกลับเป็น JSON อย่างเดียว ห้ามมีข้อความอื่นนอก JSON ตามรูปแบบนี้:",
+    `{"element": "ธาตุของรูปหน้า เลือก 1 คำจาก ${FACE_ELEMENTS.join("/")}", "parts": {${partSpec}}, "advice": "คำแนะนำเสริมดวง 1-2 ประโยค"}`,
+    "ช่อง face ให้อธิบายโครงหน้าตามธาตุนั้นและนิสัย/ดวงภาพรวม 3-5 ประโยค ช่องอื่นช่องละ 2-3 ประโยค อธิบายลักษณะที่เห็นก่อนแล้วตามด้วยคำทำนาย",
+    "ทุกข้อความใน JSON ต้องเป็นภาษาไทยล้วน จบประโยคสมบูรณ์",
+  ].join("\n");
+
+  const messages: ChatMsg[] = [
+    { role: "system", content: system },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "ช่วยดูโหงวเฮ้งจากใบหน้าในรูปนี้ให้หน่อย" },
+        { type: "image_url", image_url: { url: imageDataUrl } },
+      ],
+    },
+  ];
+
+  for (const model of getVisionModelChain()) {
+    try {
+      const text = await callOpenRouter(model, messages, 1600);
+      const outcome = normalizeFaceReading(extractJson(text));
+      if (outcome) return outcome;
+    } catch {
+      // ลองโมเดลถัดไปในสาย
+    }
+  }
+  return { ok: false, reason: "unavailable" };
 }

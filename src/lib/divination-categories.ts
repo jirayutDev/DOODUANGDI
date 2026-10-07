@@ -60,6 +60,7 @@ export const DIVINATION_GROUPS: DivinationGroup[] = [
       { slug: "birthday-personality", name: "นิสัยจากวันเกิด", blurb: "อุปนิสัยจากวันที่คุณลืมตาดูโลก", mode: "ai", status: "live", href: "/personality/day" },
       { slug: "zodiac-personality", name: "นิสัยตาม 12 ราศี", blurb: "แต่ละราศีมีเสน่ห์ต่างกันยังไง", mode: "ai", status: "live", href: "/personality/zodiac" },
       { slug: "nakshatra-personality", name: "นิสัยตาม 12 นักษัตร", blurb: "คนเกิดปีนักษัตรเดียวกันเหมือนกันไหม", mode: "ai", status: "live", href: "/personality/nakshatra" },
+      { slug: "face-reading", name: "สแกนหน้าดูโหงวเฮ้ง", blurb: "ถ่ายหน้าตรง ให้น้องมูอ่านใบหน้า ตา ปาก คิ้ว ตามตำรา", mode: "ai", status: "live", href: "/face-reading" },
     ],
   },
   {
