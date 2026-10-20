@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/mu-book", label: "สมุดดวง" },
   { href: "/reading", label: "เปิดไพ่" },
   { href: "/face-reading", label: "โหงวเฮ้ง" },
+  { href: "/love-match", label: "จับคู่ความรัก" },
   { href: "/duang", label: "ทุกศาสตร์" },
   { href: "/mor-du", label: "หมอดู" },
   { href: "/membership", label: "สมาชิก" },

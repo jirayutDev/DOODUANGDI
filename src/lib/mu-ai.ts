@@ -1,4 +1,4 @@
-import type { BirthProfile } from "./astrology";
+import { calculateBirthProfile, type BirthProfile } from "./astrology";
 import type { TarotCard } from "./tarot-data";
 
 // คำที่บ่งชี้ว่าผู้ใช้อาจทุกข์ใจหนัก — ตามขอบเขต AI ในแผน ต้องส่งต่อสายด่วนสุขภาพจิต ไม่ใช่ทำนายต่อ
@@ -360,4 +360,103 @@ export async function generateFaceReading(imageDataUrl: string): Promise<FaceRea
     }
   }
   return { ok: false, reason: "unavailable" };
+}
+
+// ---------- จับคู่ความรัก ----------
+export const LOVE_GENDERS = ["male", "female", "lgbt"] as const;
+export type LoveGender = (typeof LOVE_GENDERS)[number];
+
+const LOVE_GENDER_LABEL: Record<LoveGender, string> = { male: "ชาย", female: "หญิง", lgbt: "LGBTQ+" };
+
+export interface LovePerson {
+  name: string;
+  birthDate: string;
+  gender: LoveGender;
+}
+
+export interface LoveMatchResult {
+  score: number;
+  summary: string;
+  strengths: string[];
+  cautions: string[];
+  advice: string;
+}
+
+// ธาตุของ 12 ราศีตามตำราตะวันตก ใช้ประเมินความเข้ากันในโหมด fallback
+const ZODIAC_ELEMENT: Record<string, string> = {
+  เมษ: "ไฟ", สิงห์: "ไฟ", ธนู: "ไฟ",
+  พฤษภ: "ดิน", กันย์: "ดิน", มังกร: "ดิน",
+  เมถุน: "ลม", ตุลย์: "ลม", กุมภ์: "ลม",
+  กรกฎ: "น้ำ", พิจิก: "น้ำ", มีน: "น้ำ",
+};
+
+const ELEMENT_AFFINITY: Record<string, number> = {
+  "ไฟ-ไฟ": 80, "ดิน-ดิน": 80, "ลม-ลม": 78, "น้ำ-น้ำ": 82,
+  "ไฟ-ลม": 88, "ดิน-น้ำ": 88, "ไฟ-ดิน": 60, "ไฟ-น้ำ": 55, "ดิน-ลม": 58, "ลม-น้ำ": 62,
+};
+
+function elementOf(zodiac: string): string {
+  return ZODIAC_ELEMENT[zodiac.replace(/^ราศี/, "")] ?? "";
+}
+
+function buildFallbackLoveMatch(a: BirthProfile, b: BirthProfile): LoveMatchResult {
+  const ea = elementOf(a.zodiacSign);
+  const eb = elementOf(b.zodiacSign);
+  const base = ELEMENT_AFFINITY[`${ea}-${eb}`] ?? ELEMENT_AFFINITY[`${eb}-${ea}`] ?? 70;
+  const lifeBonus = Math.max(0, 6 - Math.abs(a.lifePathNumber - b.lifePathNumber));
+  const score = Math.min(97, base + lifeBonus);
+  return {
+    score,
+    summary: `ราศี${a.zodiacSign} (ธาตุ${ea || "-"}) กับราศี${b.zodiacSign} (ธาตุ${eb || "-"}) มีพลังที่เสริมกันในแบบของตัวเอง ปีนักษัตร${a.chineseZodiac} และ${b.chineseZodiac} ช่วยให้เห็นจังหวะการใช้ชีวิตที่ต่างกันเล็กน้อย`,
+    strengths: [
+      "มีมุมมองที่เติมเต็มกันและกันได้",
+      `เลขศาสตร์ ${a.lifePathNumber} และ ${b.lifePathNumber} ช่วยให้เรียนรู้จากกันได้เสมอ`,
+    ],
+    cautions: ["อย่าลืมคุยกันตรงๆ เมื่อรู้สึกไม่ตรงกัน", "เผื่อพื้นที่ส่วนตัวให้กันบ้างตามความจำเป็น"],
+    advice: "ดวงเป็นเพียงแนวทางให้ลองเข้าใจกันมากขึ้น ความสัมพันธ์จะดีหรือไม่ขึ้นอยู่กับการใส่ใจกันของทั้งสองคนเป็นหลักนะ",
+  };
+}
+
+function normalizeLoveMatch(raw: unknown): LoveMatchResult | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const list = (v: unknown) =>
+    Array.isArray(v) ? v.map(str).filter(Boolean).slice(0, 4) : [];
+  const score = typeof r.score === "number" ? Math.round(r.score) : NaN;
+  const result: LoveMatchResult = {
+    score,
+    summary: str(r.summary),
+    strengths: list(r.strengths),
+    cautions: list(r.cautions),
+    advice: str(r.advice),
+  };
+  if (!(score >= 0 && score <= 100)) return null;
+  if (!result.summary || !result.advice || !result.strengths.length || !result.cautions.length) return null;
+  return result;
+}
+
+export async function generateLoveMatch(a: LovePerson, b: LovePerson): Promise<LoveMatchResult> {
+  const pa = calculateBirthProfile(a.birthDate);
+  const pb = calculateBirthProfile(b.birthDate);
+  const describe = (label: string, p: LovePerson, prof: BirthProfile) =>
+    `${label}: เพศ${LOVE_GENDER_LABEL[p.gender]} เกิดวัน${prof.thaiBirthDay} ราศี${prof.zodiacSign} ปีนักษัตร${prof.chineseZodiac} เลขศาสตร์ ${prof.lifePathNumber}`;
+
+  const system = [
+    BASE_SYSTEM_PROMPT,
+    "ทำนายความเข้ากันได้ของคู่รักจากราศี ปีนักษัตร วันเกิด และเลขศาสตร์ โดยเคารพทุกเพศสภาพอย่างเท่าเทียม ห้ามตัดสินหรือชี้นำว่าคู่ไหนผิดปกติ",
+    "ตอบเป็น JSON อย่างเดียว ไม่มีข้อความอื่น รูปแบบ:",
+    '{"score": เลข 0-100, "summary": "สรุปภาพรวม 2-3 ประโยค", "strengths": ["จุดแข็ง 2-3 ข้อ"], "cautions": ["สิ่งที่ควรระวัง 2-3 ข้อ"], "advice": "คำแนะนำ 1-2 ประโยค"}',
+    "ใช้น้ำเสียงอบอุ่นของน้องมู ไม่ขู่ และไม่ฟันธงว่าจะเลิกรากัน",
+  ].join("\n");
+
+  const text = await chatViaOpenRouter(
+    [
+      { role: "system", content: system },
+      { role: "user", content: [describe("คนที่ 1", a, pa), describe("คนที่ 2", b, pb)].join("\n") },
+    ],
+    1200
+  );
+  const parsed = text ? normalizeLoveMatch(extractJson(text)) : null;
+  return parsed ?? buildFallbackLoveMatch(pa, pb);
 }
