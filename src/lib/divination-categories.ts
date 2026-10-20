@@ -40,6 +40,7 @@ export const DIVINATION_GROUPS: DivinationGroup[] = [
       { slug: "study", name: "ดวงการเรียน", blurb: "ช่วงนี้เรื่องเรียน/สอบต้องระวังอะไร", mode: "ai", status: "live", href: "/duang/study" },
       { slug: "family", name: "ดวงครอบครัว บริวาร", blurb: "คนรอบตัวส่งผลกับเรายังไง", mode: "ai", status: "live", href: "/duang/family" },
       { slug: "fortune", name: "ดวงโชคลาภ", blurb: "จับพลังโชคช่วงนี้ (ไม่ทำนายตัวเลข)", mode: "ai", status: "live", href: "/duang/fortune" },
+      { slug: "love-match", name: "จับคู่ความรัก", blurb: "กรอกวันเกิดคุณกับคนรู้ใจ ดูความเข้ากันได้", mode: "ai", status: "live", href: "/love-match" },
       { slug: "compatibility", name: "ดวงสมพงศ์ เนื้อคู่", blurb: "ราศีคุณกับเขาไปด้วยกันไหม", mode: "ai", status: "live", href: "/duang/compatibility" },
       { slug: "life-graph", name: "กราฟชีวิต", blurb: "เห็นจังหวะขึ้นลงของชีวิตในภาพเดียว", mode: "ai", status: "live", href: "/duang/life-graph" },
     ],
