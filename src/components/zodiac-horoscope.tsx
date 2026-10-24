@@ -1,0 +1,150 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ZODIAC_SIGN_NAMES } from "@/lib/astrology";
+import { cn } from "@/lib/utils";
+
+export type HoroscopeKind = "daily" | "weekly" | "monthly";
+
+const PROFILE_KEY = "ommu:birth-profile";
+
+const TABS: { kind: HoroscopeKind; label: string; href: string }[] = [
+  { kind: "daily", label: "รายวัน", href: "/daily-horoscope" },
+  { kind: "weekly", label: "รายสัปดาห์", href: "/duang/weekly" },
+  { kind: "monthly", label: "รายเดือน", href: "/duang/monthly" },
+];
+
+interface HoroscopeData {
+  periodLabel: string;
+  content: string;
+}
+
+export function ZodiacHoroscope({ kind }: { kind: HoroscopeKind }) {
+  const [sign, setSign] = useState<string | null>(null);
+  const [fetched, setFetched] = useState<{
+    key: string;
+    data: HoroscopeData | null;
+  } | null>(null);
+  const key = sign ? `${kind}:${sign}` : null;
+  const settled = fetched !== null && fetched.key === key;
+  const loading = !!key && !settled;
+  const error = settled && fetched.data === null;
+  const data = settled ? fetched.data : null;
+
+  // เลือกราศีจากโปรไฟล์ที่บันทึกไว้ (ถ้ามี)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PROFILE_KEY);
+      if (!raw) return;
+      const z = JSON.parse(raw)?.zodiacSign;
+      if (typeof z === "string" && (ZODIAC_SIGN_NAMES as readonly string[]).includes(z)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSign(z);
+      }
+    } catch {
+      // อ่านไม่ได้ก็ไม่ต้องเลือกล่วงหน้า
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!sign || !key) return;
+    const controller = new AbortController();
+    fetch(`/api/horoscope?kind=${kind}&sign=${encodeURIComponent(sign)}`, {
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.content) throw new Error("failed");
+        setFetched({ key, data: { periodLabel: json.periodLabel, content: json.content } });
+      })
+      .catch((e) => {
+        if (e?.name === "AbortError") return;
+        setFetched({ key, data: null });
+      });
+    return () => controller.abort();
+  }, [kind, sign, key]);
+
+  return (
+    <div>
+      <div className="mt-[18px] flex flex-wrap items-center gap-2">
+        {TABS.map((t) => (
+          <Link
+            key={t.kind}
+            href={t.href}
+            aria-current={t.kind === kind ? "page" : undefined}
+            className={cn(
+              "inline-flex min-h-10 items-center rounded-full border px-4 text-sm transition-colors",
+              t.kind === kind
+                ? "border-primary bg-primary font-semibold text-primary-foreground"
+                : "border-line-soft text-soft-text hover:border-primary"
+            )}
+          >
+            {t.label}
+          </Link>
+        ))}
+        <span className="rounded-full bg-secondary px-3 py-1 text-xs text-primary">
+          ฟรี ไม่ต้องล็อกอิน
+        </span>
+      </div>
+
+      <div
+        role="group"
+        aria-label="เลือกราศี"
+        className="mt-5 grid max-w-[640px] grid-cols-[repeat(auto-fill,minmax(76px,1fr))] gap-2"
+      >
+        {ZODIAC_SIGN_NAMES.map((z) => {
+          const on = sign === z;
+          return (
+            <button
+              key={z}
+              type="button"
+              aria-pressed={on}
+              onClick={() => setSign(z)}
+              className={cn(
+                "min-h-[52px] rounded border py-1 text-[13px] leading-[1.4] transition-colors",
+                on
+                  ? "border-primary bg-primary font-semibold text-primary-foreground"
+                  : "border-line-soft bg-transparent text-foreground hover:border-primary"
+              )}
+            >
+              <span className="block text-xs opacity-80">ราศี</span>
+              <span className="block text-[15px]">{z}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {!sign && <p className="mt-6 text-sm text-muted-foreground">เลือกราศีของคุณเพื่ออ่านดวง</p>}
+
+      {sign && loading && (
+        <p className="mt-8 text-sm text-muted-foreground">น้องมูกำลังเปิดดวงให้...</p>
+      )}
+
+      {sign && error && !loading && (
+        <p className="mt-8 text-sm text-soft-text" role="alert">
+          ตอนนี้ยังโหลดดวงไม่ได้ ลองใหม่อีกครั้งในอีกสักครู่นะ
+        </p>
+      )}
+
+      {data && !loading && (
+        <div className="mt-8 max-w-[760px] rounded-[18px] bg-card p-5">
+          <p className="text-sm text-muted-foreground">
+            ราศี{sign} · {data.periodLabel}
+          </p>
+          <p className="mt-2 whitespace-pre-line text-[17px] leading-[1.8] text-soft-text">
+            {data.content}
+          </p>
+          <div className="mt-3">
+            <Link
+              href="/profile"
+              className="inline-flex min-h-11 items-center gap-1 font-semibold text-primary hover:text-cream"
+            >
+              กรอกวันเกิดเต็ม ให้ดวงแม่นขึ้น <span aria-hidden="true">›</span>
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

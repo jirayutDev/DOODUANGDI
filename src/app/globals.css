@@ -41,40 +41,48 @@
   --gold: #8c6a2e;
   --gold-soft: rgba(140, 106, 46, 0.35);
   --star: #8c6a2e;
+  --cream: #fbf6ea;
+  --ink: #2b2352;
+  --line-soft: #e2d6b8;
+  --soft-text: #5e5680;
 }
 
 /* ---------- โหมดราตรี: ครามดึก ทองหม่น กระดาษเก่า ---------- */
 .dark {
-  --background: #16132e;          /* ฟ้ากลางคืน */
-  --foreground: #f3e9d2;          /* กระดาษเก่า */
-  --card: #211c44;
-  --card-foreground: #f3e9d2;
-  --popover: #1c1839;
-  --popover-foreground: #f3e9d2;
+  --background: #1a1533;          /* ฟ้ากลางคืน (ดีไซน์ V2) */
+  --foreground: #efe9f7;
+  --card: #241d45;
+  --card-foreground: #efe9f7;
+  --popover: #241d45;
+  --popover-foreground: #efe9f7;
 
-  --primary: #d4af6a;             /* ทองหม่น */
-  --primary-foreground: #16132e;
-  --secondary: #2c2657;
-  --secondary-foreground: #f3e9d2;
-  --muted: #262050;
-  --muted-foreground: #b9afcf;    /* ม่วงหมอก */
-  --accent: #3a3170;
-  --accent-foreground: #f3e9d2;
+  --primary: #e8b84a;             /* ทอง */
+  --primary-foreground: #1a1533;
+  --secondary: #2a2250;
+  --secondary-foreground: #efe9f7;
+  --muted: #241d45;
+  --muted-foreground: #a99fc4;    /* ม่วงหมอก */
+  --accent: #3a3166;
+  --accent-foreground: #efe9f7;
   --destructive: #e06c6c;
 
-  --border: #3a3462;
-  --input: #3a3462;
-  --ring: #d4af6a;
+  --border: #2e2756;
+  --input: #3a3166;
+  --ring: #e8b84a;
 
-  --chart-1: #d4af6a;
+  --chart-1: #e8b84a;
   --chart-2: #a9b8d9;
   --chart-3: #c98b6b;
   --chart-4: #7fc4b8;
   --chart-5: #b98ad9;
 
-  --gold: #d4af6a;
-  --gold-soft: rgba(212, 175, 106, 0.35);
-  --star: #f3e9d2;
+  --gold: #e8b84a;
+  --gold-soft: rgba(232, 184, 74, 0.35);
+  --star: #f4eee2;
+  --cream: #f4eee2;               /* พื้นกล่องคำถาม/ฟองตอบ */
+  --ink: #1a1533;                 /* ตัวอักษรบนพื้นครีม/ทอง */
+  --line-soft: #3a3166;
+  --soft-text: #cfc6e6;
 }
 
 /* ---------- ผูกโทเค็นเข้ากับ Tailwind ---------- */
@@ -104,10 +112,14 @@
   --color-chart-5: var(--chart-5);
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --color-line-soft: var(--line-soft);
+  --color-soft-text: var(--soft-text);
 
   /* กรอบไพ่ใช้สีเดิมทั้งสองโหมด เพื่อให้ไพ่หน้าตาเหมือนกันทุกที่ */
-  --color-tarot-night: #16132e;
-  --color-tarot-gold: #d4af6a;
+  --color-tarot-night: #1a1533;
+  --color-tarot-gold: #e8b84a;
   --color-tarot-parchment: #f3e9d2;
 
   --radius-sm: calc(var(--radius) - 4px);

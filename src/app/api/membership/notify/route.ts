@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDb } from "@/db";
 import { payments } from "@/db/schema";
+import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
@@ -14,10 +15,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "กรุณาเข้าสู่ระบบก่อน" }, { status: 401 });
   }
 
-  const body = (await req.json()) as { paymentId?: string };
-  if (!body.paymentId) {
+  let body: { paymentId?: unknown } | null;
+  try {
+    body = (await req.json()) as { paymentId?: unknown } | null;
+  } catch {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
+  const parsedId = z.string().uuid().safeParse(body?.paymentId);
+  if (!parsedId.success) {
+    return NextResponse.json({ error: "invalid payload" }, { status: 400 });
+  }
+  const paymentId = parsedId.data;
 
   const db = getDb();
   const result = await db
@@ -25,7 +33,7 @@ export async function POST(req: NextRequest) {
     .set({ status: "awaiting_confirmation", notifiedAt: new Date() })
     .where(
       and(
-        eq(payments.id, body.paymentId),
+        eq(payments.id, paymentId),
         eq(payments.userId, user.id),
         eq(payments.status, "pending")
       )

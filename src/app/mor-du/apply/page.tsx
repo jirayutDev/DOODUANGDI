@@ -39,9 +39,10 @@ export default function MorDuApplyPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-12">
-      <h1 className="mb-2 font-display text-3xl text-foreground">สมัครเป็นหมอดู</h1>
-      <p className="mb-8 text-sm text-muted-foreground">
+    <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
+      <p className="text-sm text-muted-foreground">สำหรับหมอดู</p>
+      <h1 className="mt-0.5 mb-2 text-[28px] font-bold leading-[1.45] text-foreground md:text-[40px]">สมัครเป็นหมอดู</h1>
+      <p className="mb-8 max-w-xl text-sm text-muted-foreground">
         เปิดร้านฟรี หลังผ่านการตรวจสอบตามมาตรฐาน Safe Mu — บัญชีหมอดูแยกต่างหากจากบัญชีลูกดวงทั่วไป
       </p>
 
@@ -82,7 +83,7 @@ function MorDuAuthForm() {
   }
 
   return (
-    <Card className="bg-card">
+    <Card className="max-w-xl border-line-soft bg-card">
       <CardContent className="pt-6">
         <p className="mb-4 text-sm text-muted-foreground">
           ใช้บัญชีสำหรับหมอดูโดยเฉพาะ ไม่ใช่บัญชีที่ใช้ดูดวงฝั่งลูกดวง
@@ -179,7 +180,7 @@ function MorDuApplicationForm({ email }: { email: string }) {
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-between text-xs text-muted-foreground">
+      <div className="mb-4 flex max-w-xl items-center justify-between text-xs text-muted-foreground">
         <span>บัญชีหมอดู: {email}</span>
         <button className="underline underline-offset-2" onClick={handleSignOut}>
           ออกจากระบบ
@@ -187,7 +188,7 @@ function MorDuApplicationForm({ email }: { email: string }) {
       </div>
 
       {application && (
-        <Card className="mb-6 bg-card">
+        <Card className="mb-6 max-w-xl border-line-soft bg-card">
           <CardContent className="flex items-center justify-between p-4 text-sm">
             <span>{application.displayName}</span>
             <Badge variant={application.status === "approved" ? "secondary" : "outline"}>
@@ -197,7 +198,7 @@ function MorDuApplicationForm({ email }: { email: string }) {
         </Card>
       )}
 
-      <Card className="bg-card">
+      <Card className="max-w-xl border-line-soft bg-card">
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-2">

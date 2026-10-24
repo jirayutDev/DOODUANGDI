@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Camera, ChevronLeft, Eye, ImageUp, RotateCcw, ScanFace, UserRound } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Camera, Eye, ImageUp, RotateCcw, ScanFace, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { handleCoinError, featureCostLabel } from "@/lib/coin-client";
 
 type PartKey = "face" | "eyes" | "mouth" | "eyebrows";
 
@@ -67,7 +67,6 @@ export default function FaceReadingPage() {
   const [stage, setStage] = useState<Stage>("idle");
   const [image, setImage] = useState<string | null>(null);
   const [result, setResult] = useState<FaceReadingResult | null>(null);
-  const [activeTab, setActiveTab] = useState<PartKey>("face");
   const [error, setError] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
 
@@ -141,11 +140,17 @@ export default function FaceReadingPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ image }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "เกิดข้อผิดพลาด");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (handleCoinError(data)) {
+          setStage("preview");
+          return;
+        }
+        throw new Error(data.error ?? "เกิดข้อผิดพลาด");
+      }
       setResult(data.result);
-      setActiveTab("face");
       setStage("done");
+      window.dispatchEvent(new Event("coins:changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด ลองใหม่อีกครั้งนะ");
       setStage("preview");
@@ -160,154 +165,170 @@ export default function FaceReadingPage() {
     setStage("idle");
   }
 
-  const activePart = result?.parts.find((p) => p.key === activeTab);
-  const overlayText =
-    activePart && activeTab === "face" && result?.element
-      ? `${result.element} : ${activePart.reading}`
-      : activePart?.reading;
+  const btnPrimary =
+    "inline-flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-primary px-6 font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
+  const btnSecondary =
+    "inline-flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-[14px] bg-secondary px-[22px] font-semibold text-foreground transition-colors hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <div className="mx-auto max-w-md px-0 py-0 sm:px-4 sm:py-8">
-      <div className="flex min-h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-[#0d0b2b] text-white sm:min-h-0 sm:rounded-3xl sm:border sm:border-border">
-        {/* แถบหัว */}
-        <div className="relative flex h-16 shrink-0 items-center justify-center">
-          <Link
-            href="/duang"
-            aria-label="ย้อนกลับ"
-            className="absolute left-3 rounded-full p-2 text-white/90 hover:bg-white/10"
-          >
-            <ChevronLeft className="size-7" />
-          </Link>
-          <h1 className="font-display text-lg">วิเคราะห์โหงวเฮ้ง</h1>
-        </div>
+    <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
+      <p className="text-sm text-muted-foreground">บุคลิกและนิสัย</p>
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">
+        สแกนหน้า ดูโหงวเฮ้ง
+      </h1>
+      <p className="mt-2.5 max-w-[560px] text-soft-text">
+        ถ่ายหน้าตรง ให้น้องมูอ่านใบหน้า ตา ปาก คิ้ว ตามตำรา
+      </p>
 
-        {/* พื้นที่รูป/กล้อง */}
-        <div className="relative aspect-[3/4] w-full shrink-0 overflow-hidden bg-[#1a1745]">
-          {stage === "camera" && (
-            <video ref={videoRef} playsInline muted className="h-full w-full -scale-x-100 object-cover" />
-          )}
-          {image && stage !== "camera" && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="รูปใบหน้าที่สแกน" className="h-full w-full object-cover" />
-          )}
-          {stage === "idle" && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center text-white/60">
-              <ScanFace className="size-16" />
-              <p className="text-sm">ถ่ายหน้าตรงหรือเลือกรูป ให้น้องมูอ่านโหงวเฮ้งตามตำรา ใบหน้า ตา ปาก คิ้ว</p>
-            </div>
-          )}
-
-          {/* กรอบวงรีช่วยจัดหน้า + เส้นสแกน */}
-          {(stage === "camera" || stage === "scanning") && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-[68%] w-[62%] rounded-[50%] border-2 border-dashed border-[#d4af6a]/80" />
-            </div>
-          )}
-          {stage === "scanning" && (
-            <div className="pointer-events-none absolute inset-x-[10%] h-0.5 animate-face-scan bg-[#d4af6a] shadow-[0_0_18px_4px_rgba(212,175,106,0.6)]" />
-          )}
-          {stage === "camera" && (
-            <p className="absolute inset-x-0 bottom-3 text-center text-xs text-white drop-shadow">
-              จัดหน้าให้อยู่ในกรอบ มองตรง ไม่สวมแว่นดำ/หน้ากาก
-            </p>
-          )}
-          {stage === "scanning" && (
-            <p className="absolute inset-x-0 bottom-4 text-center text-sm text-white drop-shadow">
-              น้องมูกำลังพิจารณาใบหน้า...
-            </p>
-          )}
-
-          {/* กล่องคำทำนายลอยทับด้านบนของรูป */}
-          {stage === "done" && overlayText && (
-            <div
-              key={activeTab}
-              className="absolute inset-x-3 top-3 max-h-[55%] animate-deal-in overflow-y-auto rounded-2xl bg-[#1e1b4b]/90 p-4 text-[15px] leading-relaxed text-white shadow-lg backdrop-blur-sm"
-            >
-              {overlayText}
-            </div>
-          )}
-        </div>
-
-        {/* แถบล่าง */}
-        <div className="flex flex-1 flex-col justify-center gap-3 px-4 py-5">
-          {stage === "done" && result ? (
-            <>
-              <div className="grid grid-cols-4 gap-3">
-                {TABS.map(({ key, label, Icon }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setActiveTab(key)}
-                    aria-pressed={activeTab === key}
-                    className={cn(
-                      "flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-2xl text-white transition-colors",
-                      activeTab === key ? "bg-[#ad9640]" : "bg-[#7b2cbf] hover:bg-[#8a3bd0]"
-                    )}
-                  >
-                    <Icon className="size-9 sm:size-10" />
-                    <span className="text-sm">{label}</span>
-                  </button>
-                ))}
-              </div>
-              {result.advice && (
-                <p className="rounded-xl bg-white/5 p-3 text-xs leading-relaxed text-white/80">
-                  <span className="text-[#d4af6a]">คำแนะนำเสริมดวง: </span>
-                  {result.advice}
-                </p>
+      <div className="mt-[30px] flex flex-wrap items-start gap-x-20 gap-y-12">
+        {/* ซ้าย: รูป/กล้อง + ปุ่ม */}
+        <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-[18px]">
+          <div className="w-[280px] max-w-full self-center rounded-xl border border-line-soft p-2">
+            <div className="relative aspect-[7/9] w-full overflow-hidden rounded-xl bg-[#0F0B24]">
+              {stage === "camera" && (
+                <video ref={videoRef} playsInline muted className="h-full w-full -scale-x-100 object-cover" />
               )}
-              <div className="flex flex-wrap justify-center gap-2">
-                <Button variant="secondary" size="sm" onClick={reset}>
-                  <RotateCcw /> สแกนใหม่
-                </Button>
-                <Button asChild variant="ghost" size="sm" className="text-white/80 hover:text-white">
-                  <Link href="/mor-du">ปรึกษาหมอดูตัวจริง</Link>
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-3">
+              {image && stage !== "camera" && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={image} alt="รูปใบหน้าที่สแกน" className="h-full w-full object-cover" />
+              )}
               {stage === "idle" && (
-                <>
-                  <label className="flex items-start gap-2 text-left text-xs text-white/70">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5"
-                      checked={consent}
-                      onChange={(e) => setConsent(e.target.checked)}
-                    />
-                    <span>ยินยอมให้ส่งรูปใบหน้าไปให้ AI วิเคราะห์ — ใช้เพื่อทำนายครั้งนี้เท่านั้น ไม่มีการบันทึกเก็บไว้</span>
-                  </label>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <Button size="lg" onClick={openCamera} disabled={!consent}>
-                      <Camera /> เปิดกล้อง
-                    </Button>
-                    <Button size="lg" variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={!consent}>
-                      <ImageUp /> เลือกรูป
-                    </Button>
-                  </div>
-                </>
+                <div className="flex h-full flex-col items-center justify-center gap-4">
+                  <span
+                    aria-hidden
+                    className="h-[200px] w-[150px] rounded-full border-[1.5px] border-dashed border-primary"
+                  />
+                  <span className="text-base text-muted-foreground">วางหน้าให้อยู่ในวงรีนะ</span>
+                </div>
+              )}
+
+              {/* กรอบวงรีช่วยจัดหน้า + เส้นสแกน */}
+              {(stage === "camera" || stage === "scanning") && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="h-[68%] w-[62%] rounded-[50%] border-2 border-dashed border-primary/80" />
+                </div>
+              )}
+              {stage === "scanning" && (
+                <div className="pointer-events-none absolute inset-x-[10%] h-0.5 animate-face-scan bg-primary shadow-[0_0_18px_4px_rgba(232,184,74,0.6)]" />
               )}
               {stage === "camera" && (
-                <div className="flex gap-2">
-                  <Button size="lg" onClick={capture}>
-                    <Camera /> ถ่ายรูป
-                  </Button>
-                  <Button size="lg" variant="ghost" className="text-white/80" onClick={reset}>
-                    ยกเลิก
-                  </Button>
+                <p className="absolute inset-x-0 bottom-3 px-2 text-center text-xs text-white drop-shadow">
+                  จัดหน้าให้อยู่ในกรอบ มองตรง ไม่สวมแว่นดำ/หน้ากาก
+                </p>
+              )}
+              {stage === "scanning" && (
+                <p className="absolute inset-x-0 bottom-4 text-center text-sm text-white drop-shadow">
+                  น้องมูกำลังพิจารณาใบหน้า...
+                </p>
+              )}
+            </div>
+          </div>
+
+          {stage === "idle" && (
+            <>
+              <label className="flex items-start gap-2.5 text-sm text-soft-text">
+                <input
+                  type="checkbox"
+                  className="mt-[5px] accent-primary"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                />
+                <span>
+                  ยินยอมให้ส่งรูปใบหน้าไปให้ AI วิเคราะห์ ใช้ทำนายครั้งนี้เท่านั้น ไม่เก็บรูปไว้
+                </span>
+              </label>
+              <div className="flex gap-3">
+                <button type="button" className={btnPrimary} onClick={openCamera} disabled={!consent}>
+                  <Camera className="size-5" aria-hidden /> ถ่ายรูป
+                </button>
+                <button
+                  type="button"
+                  className={btnSecondary}
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!consent}
+                >
+                  <ImageUp className="size-5" aria-hidden /> เลือกรูป
+                </button>
+              </div>
+            </>
+          )}
+          {stage === "camera" && (
+            <div className="flex gap-3">
+              <button type="button" className={btnPrimary} onClick={capture}>
+                <Camera className="size-5" aria-hidden /> ถ่ายรูป
+              </button>
+              <button type="button" className={btnSecondary} onClick={reset}>
+                ยกเลิก
+              </button>
+            </div>
+          )}
+          {stage === "preview" && (
+            <div className="flex gap-3">
+              <button type="button" className={btnPrimary} onClick={scan}>
+                <ScanFace className="size-5" aria-hidden /> สแกนดูโหงวเฮ้ง
+              </button>
+              <button type="button" className={btnSecondary} onClick={reset}>
+                <RotateCcw className="size-5" aria-hidden /> ถ่ายใหม่
+              </button>
+            </div>
+          )}
+          {stage === "preview" && (
+            <p className="text-center text-xs text-muted-foreground">
+              ใช้ {featureCostLabel("face-reading")} · ต้องเข้าสู่ระบบและเป็นสมาชิก
+            </p>
+          )}
+          {stage === "done" && (
+            <button type="button" className={cn(btnSecondary, "flex-none")} onClick={reset}>
+              <RotateCcw className="size-5" aria-hidden /> สแกนใหม่
+            </button>
+          )}
+          {error && <p className="text-center text-sm text-red-300">{error}</p>}
+        </div>
+
+        {/* ขวา: ผลการอ่าน */}
+        <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-3.5">
+          {stage === "done" && result ? (
+            <>
+              <h2 className="text-[26px] font-bold leading-normal">น้องมูอ่านหน้าเธอแล้ว</h2>
+              {result.element && (
+                <p className="text-sm text-muted-foreground">ธาตุใบหน้า: {result.element}</p>
+              )}
+              <ul>
+                {TABS.map(({ key, label, Icon }) => {
+                  const part = result.parts.find((p) => p.key === key);
+                  return (
+                    <li
+                      key={key}
+                      className="flex min-h-[60px] items-start gap-3.5 border-b border-line-soft/60 py-2.5"
+                    >
+                      <Icon className="mt-1 size-6 shrink-0 text-primary" />
+                      <span className="flex flex-1 flex-col leading-normal">
+                        <span className="text-base font-semibold">{label}</span>
+                        <span className="text-[13px] text-muted-foreground">
+                          {part?.reading ?? "-"}
+                        </span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              {result.advice && (
+                <div className="mt-2.5 rounded-[18px] bg-card p-5">
+                  <p className="text-[17px] text-muted-foreground">คำแนะนำเสริมดวง</p>
+                  <p className="mt-1">{result.advice}</p>
                 </div>
               )}
-              {stage === "preview" && (
-                <div className="flex flex-wrap justify-center gap-2">
-                  <Button size="lg" onClick={scan}>
-                    <ScanFace /> สแกนดูโหงวเฮ้ง
-                  </Button>
-                  <Button size="lg" variant="ghost" className="text-white/80" onClick={reset}>
-                    <RotateCcw /> ถ่ายใหม่
-                  </Button>
-                </div>
-              )}
-              {error && <p className="text-center text-sm text-red-300">{error}</p>}
+              <Link
+                href="/mor-du"
+                className="inline-flex min-h-11 items-center gap-1 self-start font-semibold text-primary"
+              >
+                ปรึกษาหมอดูตัวจริง <span aria-hidden>›</span>
+              </Link>
+            </>
+          ) : (
+            <div className="flex flex-col items-start gap-3 text-soft-text">
+              <ScanFace className="size-12 text-muted-foreground" aria-hidden />
+              <p>ถ่ายหน้าตรงหรือเลือกรูป ให้น้องมูอ่านโหงวเฮ้งตามตำรา ใบหน้า ตา ปาก คิ้ว</p>
             </div>
           )}
         </div>
@@ -315,7 +336,7 @@ export default function FaceReadingPage() {
 
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
 
-      <p className="px-4 py-4 text-center text-xs text-muted-foreground/70">
+      <p className="mt-10 text-center text-xs text-muted-foreground/70">
         คำทำนายจาก AI อิงหลักโหงวเฮ้งแบบทั่วไป เพื่อความบันเทิงและเป็นกำลังใจ ไม่ใช่การประเมินบุคลิกหรือสุขภาพ
       </p>
     </div>

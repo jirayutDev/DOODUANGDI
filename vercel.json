@@ -1,0 +1,7 @@
+{
+  "crons": [
+    { "path": "/api/cron/horoscopes?kind=daily", "schedule": "0 17 * * *" },
+    { "path": "/api/cron/horoscopes?kind=weekly", "schedule": "0 17 * * 6" },
+    { "path": "/api/cron/horoscopes?kind=monthly", "schedule": "0 17 28-31 * *" }
+  ]
+}

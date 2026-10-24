@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Calendar, ChevronLeft, Heart, Mars, Transgender, User, Venus } from "lucide-react";
+import { Mars, Transgender, Venus } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { handleCoinError, featureCostLabel } from "@/lib/coin-client";
 
 type Gender = "male" | "female" | "lgbt";
 
@@ -33,71 +32,71 @@ const GENDER_OPTIONS: { value: Gender; label: string; Icon: typeof Mars }[] = [
   { value: "lgbt", label: "LGBT", Icon: Transgender },
 ];
 
+const INPUT_CLS =
+  "h-[50px] w-full rounded-xl border-0 bg-cream px-3.5 text-base text-ink outline-none [color-scheme:light] placeholder:text-ink/50 focus-visible:ring-2 focus-visible:ring-primary";
+
 function PersonSection({
   title,
   value,
   onChange,
   idPrefix,
+  placeholder,
 }: {
   title: string;
   value: PersonForm;
   onChange: (v: PersonForm) => void;
   idPrefix: string;
+  placeholder: string;
 }) {
-  const field =
-    "flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-2 backdrop-blur-sm";
-  const input =
-    "h-10 border-0 bg-transparent px-0 text-base text-white placeholder:text-white/70 focus-visible:ring-0 dark:bg-transparent";
+  const label = "flex flex-col gap-1.5 text-sm font-medium text-foreground";
 
   return (
-    <section className="grid gap-3">
-      <h2 className="flex items-center gap-2 font-display text-xl">
-        <Heart className="size-6 fill-[#ef5b5b] text-[#ef5b5b]" aria-hidden />
-        {title}
-      </h2>
+    <section className="flex flex-col gap-3 rounded-[18px] bg-card p-5">
+      <h2 className="font-bold">{title}</h2>
 
-      <label className={field}>
-        <User className="size-5 shrink-0" aria-hidden />
-        <Input
+      <label className={label}>
+        ชื่อเล่น
+        <input
           id={`${idPrefix}-name`}
+          type="text"
           aria-label={`${title} ชื่อ-สกุล`}
-          placeholder="ชื่อ-สกุล"
+          placeholder={placeholder}
           maxLength={60}
           value={value.name}
           onChange={(e) => onChange({ ...value, name: e.target.value })}
-          className={input}
+          className={INPUT_CLS}
         />
       </label>
 
-      <label className={field}>
-        <Calendar className="size-5 shrink-0" aria-hidden />
-        <Input
+      <label className={label}>
+        วันเกิด
+        <input
           id={`${idPrefix}-birth`}
           aria-label={`${title} วันเดือนปีเกิด`}
           type="date"
           max={new Date().toISOString().slice(0, 10)}
           value={value.birthDate}
           onChange={(e) => onChange({ ...value, birthDate: e.target.value })}
-          className={cn(input, "[color-scheme:dark]", !value.birthDate && "text-white/70")}
+          className={INPUT_CLS}
         />
       </label>
 
       <div role="group" aria-label={`${title} เพศ`} className="grid grid-cols-3 gap-2">
-        {GENDER_OPTIONS.map(({ value: g, label, Icon }) => (
+        {GENDER_OPTIONS.map(({ value: g, label: text, Icon }) => (
           <button
             key={g}
             type="button"
             aria-pressed={value.gender === g}
             onClick={() => onChange({ ...value, gender: g })}
             className={cn(
-              "flex h-12 items-center justify-center gap-2 rounded-2xl text-sm transition-colors",
+              "flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors",
               value.gender === g
-                ? "bg-[#7b6cf0] text-white"
-                : "bg-white/10 text-white/80 hover:bg-white/15"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-foreground hover:bg-secondary/80"
             )}
           >
             <Icon className="size-5" aria-hidden />
-            {label}
+            {text}
           </button>
         ))}
       </div>
@@ -141,9 +140,13 @@ export default function LoveMatchPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ you, partner }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "เกิดข้อผิดพลาด");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (handleCoinError(data)) return;
+        throw new Error(data.error ?? "เกิดข้อผิดพลาด");
+      }
       setResult(data.result);
+      window.dispatchEvent(new Event("coins:changed"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "เกิดข้อผิดพลาด");
     } finally {
@@ -152,80 +155,121 @@ export default function LoveMatchPage() {
   }
 
   return (
-    <div className="mx-auto min-h-[calc(100vh-4rem)] max-w-md bg-gradient-to-b from-[#4a2370] via-[#1b1a45] to-[#0d0b2b] px-5 pb-10 text-white sm:rounded-3xl">
-      <div className="relative flex h-16 shrink-0 items-center justify-center">
-        <Link
-          href="/duang"
-          aria-label="ย้อนกลับ"
-          className="absolute -left-2 rounded-full p-2 text-white/90 hover:bg-white/10"
+    <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
+      <p className="text-sm text-muted-foreground">จับคู่ความรัก</p>
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">
+        เราสองคนเข้ากันไหม
+      </h1>
+      <p className="mt-2.5 max-w-[560px] text-soft-text">
+        ใส่ชื่อเล่นกับวันเกิดของทั้งสองคน น้องมูจะดูให้ว่าเข้ากันแค่ไหน และควรระวังเรื่องอะไร
+      </p>
+
+      <div className="mt-6 flex flex-wrap items-start gap-x-16 gap-y-8">
+        <div
+          className={cn(
+            "min-w-0 flex-[1_1_320px] flex-col gap-3",
+            result ? "hidden md:flex" : "flex"
+          )}
         >
-          <ChevronLeft className="size-7" />
-        </Link>
-        <h1 className="font-display text-lg">จับคู่ความรัก</h1>
-      </div>
+          <PersonSection title="คนที่ 1 (เรา)" idPrefix="you" placeholder="เช่น มายด์" value={you} onChange={setYou} />
+          <PersonSection title="คนที่ 2 (เขา)" idPrefix="partner" placeholder="เช่น ต้น" value={partner} onChange={setPartner} />
 
-      {result ? (
-        <div className="grid gap-5 pt-2">
-          <div className="rounded-3xl bg-white/10 p-6 text-center">
-            <p className="text-sm text-white/80">
-              {you.name.trim()} ❤ {partner.name.trim()}
-            </p>
-            <p className="mt-2 font-display text-6xl text-[#d4af6a]">{result.score}%</p>
-            <p className="mt-1 text-sm text-white/80">ความเข้ากันได้</p>
-          </div>
-
-          <p className="leading-relaxed">{result.summary}</p>
-
-          <div className="rounded-2xl bg-white/10 p-4">
-            <h2 className="mb-2 font-display text-lg text-[#d4af6a]">จุดแข็งของคู่นี้</h2>
-            <ul className="grid list-disc gap-1 pl-5 text-sm leading-relaxed">
-              {result.strengths.map((s) => (
-                <li key={s}>{s}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-2xl bg-white/10 p-4">
-            <h2 className="mb-2 font-display text-lg text-[#d4af6a]">สิ่งที่ควรระวัง</h2>
-            <ul className="grid list-disc gap-1 pl-5 text-sm leading-relaxed">
-              {result.cautions.map((s) => (
-                <li key={s}>{s}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-2xl bg-[#1e1b4b]/90 p-4 text-sm leading-relaxed">
-            <span className="font-display text-[#d4af6a]">คำแนะนำจากน้องมู: </span>
-            {result.advice}
-          </div>
-
-          <Button
-            type="button"
-            onClick={() => setResult(null)}
-            className="h-12 rounded-2xl bg-gradient-to-b from-[#b79cf5] to-[#6f63e0] text-base text-white"
-          >
-            ทำนายใหม่
-          </Button>
-          <p className="text-center text-xs text-white/60">
-            ผลทำนายเป็นเพียงความบันเทิงและแนวทางประกอบการตัดสินใจ ไม่ใช่คำตัดสินความสัมพันธ์
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-6 pt-2">
-          <PersonSection title="ข้อมูลคุณ" idPrefix="you" value={you} onChange={setYou} />
-          <PersonSection title="คนรู้ใจ" idPrefix="partner" value={partner} onChange={setPartner} />
-
-          <Button
+          <button
             type="button"
             onClick={handleSubmit}
             disabled={loading}
-            className="mt-2 h-14 rounded-2xl bg-gradient-to-b from-[#b79cf5] to-[#6f63e0] text-lg text-white hover:opacity-90"
+            className="inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[14px] bg-primary px-6 font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
           >
-            {loading ? "น้องมูกำลังทำนาย..." : "คลิกทำนาย"}
-            {!loading && <Heart className="size-5 fill-[#ef5b5b] text-[#ef5b5b]" aria-hidden />}
-          </Button>
+            {loading ? "น้องมูกำลังทำนาย..." : "ดูว่าเข้ากันไหม"}
+          </button>
+          <p className="text-center text-sm text-muted-foreground">
+            ใช้ {featureCostLabel("love-match")} · ต้องเข้าสู่ระบบและเป็นสมาชิก
+          </p>
         </div>
-      )}
+
+        <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-3.5">
+          {result ? (
+            <>
+              <p className="text-sm text-muted-foreground">ผลการจับคู่</p>
+              <div className="flex flex-col gap-2.5 rounded-[18px] bg-cream p-5 text-ink">
+                <p className="text-sm text-[#5A4F80]">
+                  {you.name.trim()} กับ {partner.name.trim()}
+                </p>
+                <p className="flex items-baseline gap-2">
+                  <span className="text-5xl font-bold leading-[1.2]">{result.score}%</span>
+                  <span>ความเข้ากันได้</span>
+                </p>
+                <div aria-hidden className="h-2 rounded-full bg-[#E2D8C4]">
+                  <div
+                    className="h-2 rounded-full bg-ink"
+                    style={{ width: `${Math.min(100, Math.max(0, result.score))}%` }}
+                  />
+                </div>
+                <p className="mt-1.5 leading-[1.7]">{result.summary}</p>
+              </div>
+
+              <div className="rounded-[18px] bg-card p-5">
+                <h2 className="mb-2 font-bold text-primary">จุดแข็งของคู่นี้</h2>
+                <ul className="grid list-disc gap-1 pl-5 text-sm leading-relaxed">
+                  {result.strengths.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-[18px] bg-card p-5">
+                <h2 className="mb-2 font-bold text-primary">สิ่งที่ควรระวัง</h2>
+                <ul className="grid list-disc gap-1 pl-5 text-sm leading-relaxed">
+                  {result.cautions.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-[18px] bg-card p-5 text-sm leading-relaxed">
+                <span className="font-bold text-primary">คำแนะนำจากน้องมู: </span>
+                {result.advice}
+              </div>
+
+              <div className="flex flex-wrap gap-2.5">
+                <Link
+                  href="/chat"
+                  className="inline-flex min-h-[50px] items-center justify-center rounded-[14px] bg-primary px-6 font-bold text-primary-foreground hover:opacity-90"
+                >
+                  ถามน้องมูต่อ
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setResult(null)}
+                  className="inline-flex min-h-[50px] items-center justify-center rounded-[14px] bg-secondary px-[22px] font-semibold text-foreground hover:bg-secondary/80"
+                >
+                  ลองคู่ใหม่
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                ผลทำนายเป็นเพียงความบันเทิงและแนวทางประกอบการตัดสินใจ ไม่ใช่คำตัดสินความสัมพันธ์
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">ตัวอย่างผลลัพธ์</p>
+              <div className="flex flex-col gap-2.5 rounded-[18px] bg-cream p-5 text-ink">
+                <p className="text-sm text-[#5A4F80]">มายด์ กับ ต้น</p>
+                <p className="flex items-baseline gap-2">
+                  <span className="text-5xl font-bold leading-[1.2]">72%</span>
+                  <span>เข้ากันดี</span>
+                </p>
+                <div aria-hidden className="h-2 rounded-full bg-[#E2D8C4]">
+                  <div className="h-2 w-[72%] rounded-full bg-ink" />
+                </div>
+                <p className="mt-1.5 leading-[1.7]">
+                  คำทำนายจากน้องมู เรื่องนิสัยที่เข้ากัน และสิ่งที่ควรระวัง
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

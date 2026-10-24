@@ -1,113 +1,68 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
 import { getDb } from "@/db";
 import { chatMessages } from "@/db/schema";
-import { and, eq, gte } from "drizzle-orm";
 import { TAROT_CARDS } from "@/lib/tarot-data";
-import { generateMuReply, isCrisisMessage, CRISIS_REPLY } from "@/lib/mu-ai";
-import type { BirthProfile } from "@/lib/astrology";
+import { generateMuReply, isCrisisMessage, serverProfile, CRISIS_REPLY } from "@/lib/mu-ai";
+import { chargeFeature, getBalance } from "@/lib/coins";
 
-const DAILY_QUOTA = 3;
+const bodySchema = z.object({
+  message: z.string().trim().min(1).max(500),
+  // รับเฉพาะ birthDate แล้วคำนวณโปรไฟล์ใหม่ฝั่ง server (field อื่นถูกทิ้ง)
+  profile: z.object({ birthDate: z.string().max(10) }).nullish(),
+  history: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(500) }))
+    .max(6)
+    .optional(),
+});
 
-interface ChatRequestBody {
-  message: string;
-  profile?: (BirthProfile & { birthDate: string }) | null;
-  history?: { role: "user" | "assistant"; content: string }[];
-  clientQuotaUsed?: number; // fallback นับที่ฝั่ง client เมื่อยังไม่ได้ล็อกอิน
-}
-
-function startOfTodayUtc() {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
-}
-
+// แชทน้องมู: ล็อกอิน + เป็นสมาชิก + จ่าย coin ต่อข้อ (แทนโควตา 3 ข้อ/วันแบบเดิม)
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as ChatRequestBody;
-  const message = body.message?.trim();
-
-  if (!message) {
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid payload" }, { status: 400 });
+  }
+  const parsed = bodySchema.safeParse(json);
+  if (!parsed.success) {
     return NextResponse.json({ error: "message is required" }, { status: 400 });
   }
+  const { message } = parsed.data;
+  const history = parsed.data.history ?? [];
 
-  if (isCrisisMessage(message)) {
-    return NextResponse.json({
-      reply: CRISIS_REPLY,
-      card: null,
-      quotaUsed: body.clientQuotaUsed ?? 0,
-      quotaLimit: DAILY_QUOTA,
-    });
+  // ข้อความวิกฤตตอบทันทีโดยไม่คิด coin เพื่อให้ได้รับข้อมูลช่วยเหลือเสมอ (ตรวจประวัติฝั่งผู้ใช้ด้วย)
+  if (isCrisisMessage(message) || history.some((h) => h.role === "user" && isCrisisMessage(h.content))) {
+    return NextResponse.json({ reply: CRISIS_REPLY, card: null });
   }
 
-  let userId: string | null = null;
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    userId = user?.id ?? null;
-  } catch {
-    // ยังไม่ได้ตั้งค่า Supabase env — ทำงานแบบ anonymous ต่อ
-  }
+  const profile = parsed.data.profile ? serverProfile(parsed.data.profile.birthDate) : null;
 
-  // นับโควตาวันนี้: ใช้ DB จริงถ้าล็อกอินและต่อ Supabase แล้ว ไม่งั้นเชื่อตัวนับจาก client
-  let quotaUsed = body.clientQuotaUsed ?? 0;
-  let db: Awaited<ReturnType<typeof getDb>> | null = null;
-  if (userId) {
-    try {
-      db = getDb();
-      const rows = await db
-        .select({ id: chatMessages.id })
-        .from(chatMessages)
-        .where(
-          and(
-            eq(chatMessages.userId, userId),
-            eq(chatMessages.role, "user"),
-            gte(chatMessages.createdAt, startOfTodayUtc())
-          )
-        );
-      quotaUsed = rows.length;
-    } catch {
-      db = null;
-    }
-  }
-
-  if (quotaUsed >= DAILY_QUOTA) {
-    return NextResponse.json({
-      reply:
-        "วันนี้ถามน้องมูครบ 3 ข้อแล้วนะ พักไว้ก่อน พรุ่งนี้มาถามต่อได้ หรือสมัคร AI Plus เพื่อคุยไม่จำกัดข้อ",
-      card: null,
-      quotaUsed,
-      quotaLimit: DAILY_QUOTA,
-      limitReached: true,
-    });
-  }
+  const charge = await chargeFeature("chat");
+  if (!charge.ok) return charge.res;
 
   const today = new Date().toISOString().slice(0, 10);
   const card = TAROT_CARDS[(today.length + message.length) % TAROT_CARDS.length];
 
-  const reply = await generateMuReply({
-    message,
-    profile: body.profile ?? null,
-    card,
-    history: body.history ?? [],
-  });
-
-  if (userId && db) {
-    try {
-      await db.insert(chatMessages).values([
-        { userId, role: "user", content: message },
-        { userId, role: "assistant", content: reply },
-      ]);
-    } catch {
-      // บันทึกไม่สำเร็จก็ยังตอบผู้ใช้ได้ตามปกติ
-    }
+  let reply: string | null;
+  try {
+    reply = await generateMuReply({ message, profile, card, history });
+  } catch {
+    reply = null;
+  }
+  if (!reply) {
+    await charge.refund();
+    return NextResponse.json({ error: "น้องมูตอบไม่ได้ชั่วคราว ลองใหม่อีกครั้งนะ" }, { status: 503 });
   }
 
-  return NextResponse.json({
-    reply,
-    card,
-    quotaUsed: quotaUsed + 1,
-    quotaLimit: DAILY_QUOTA,
-  });
+  try {
+    await getDb().insert(chatMessages).values([
+      { userId: charge.userId, role: "user", content: message },
+      { userId: charge.userId, role: "assistant", content: reply },
+    ]);
+  } catch {
+    // บันทึกไม่สำเร็จก็ยังตอบผู้ใช้ได้ตามปกติ
+  }
+
+  return NextResponse.json({ reply, card, cost: charge.cost, balance: await getBalance(charge.userId) });
 }

@@ -7,14 +7,18 @@ import {
   time,
   integer,
   pgEnum,
+  boolean,
+  check,
+  primaryKey,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
 export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
 export const muBookSourceEnum = pgEnum("mu_book_source", ["ai", "mor_du"]);
 export const morDuStatusEnum = pgEnum("mor_du_status", ["pending", "approved", "rejected", "suspended"]);
-export const paymentPurposeEnum = pgEnum("payment_purpose", ["ai_plus", "mu_club"]);
+export const paymentPurposeEnum = pgEnum("payment_purpose", ["ai_plus", "mu_club", "coin_topup"]);
 export const paymentStatusEnum = pgEnum("payment_status", [
   "pending", // สร้าง QR แล้ว รอผู้ใช้จ่าย
   "awaiting_confirmation", // ผู้ใช้กด "แจ้งชำระเงินแล้ว"
@@ -106,11 +110,13 @@ export const payments = pgTable("payments", {
   userId: uuid("user_id").notNull(),
   purpose: paymentPurposeEnum("purpose").notNull(),
   amountBaht: integer("amount_baht").notNull(),
+  coins: integer("coins"), // เฉพาะ purpose = coin_topup: จำนวน coin ที่จะได้เมื่อยืนยัน
   status: paymentStatusEnum("status").notNull().default("pending"),
   promptpayRef: text("promptpay_ref").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   notifiedAt: timestamp("notified_at", { withTimezone: true }),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  slipTransRef: text("slip_trans_ref").unique(), // เลขอ้างอิงธุรกรรมจากสลิปที่ Slip2Go ยืนยัน กันใช้สลิปซ้ำ
 });
 
 // สถานะสมาชิกปัจจุบันของผู้ใช้ (1 คนมีได้ 1 แพ็กเกจที่ active ในแต่ละช่วงเวลา)
@@ -122,6 +128,62 @@ export const memberships = pgTable("memberships", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// กระเป๋า coin ของผู้ใช้ — balance ห้ามติดลบ ตัด coin ด้วย UPDATE ... WHERE balance >= n เพื่อกันกดซ้อน
+export const coinWallets = pgTable(
+  "coin_wallets",
+  {
+    userId: uuid("user_id").primaryKey(),
+    balance: integer("balance").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [check("coin_wallets_balance_nonneg", sql`${t.balance} >= 0`)]
+);
+
+// สมุดบัญชี coin: amount บวก = ได้รับ, ลบ = ใช้จ่าย
+export const coinTransactions = pgTable("coin_transactions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  amount: integer("amount").notNull(),
+  kind: text("kind").notNull(), // topup | code | bonus | spend | refund
+  ref: text("ref"), // feature key, payment id หรือโค้ด
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// โค้ดแลก coin — แอดมินสร้าง ใช้ได้คนละครั้ง จำกัดจำนวนครั้งรวมและวันหมดอายุได้
+export const coinCodes = pgTable("coin_codes", {
+  code: text("code").primaryKey(), // เก็บเป็นตัวพิมพ์ใหญ่
+  coins: integer("coins").notNull(),
+  maxUses: integer("max_uses").notNull().default(1),
+  usedCount: integer("used_count").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const coinCodeRedemptions = pgTable(
+  "coin_code_redemptions",
+  {
+    code: text("code").notNull(),
+    userId: uuid("user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.code, t.userId] })]
+);
+
+// ดวงราศีรายวัน/สัปดาห์/เดือน ที่สร้างล่วงหน้าตามตาราง (cron) — 1 แถวต่อ (ชนิด, ช่วงเวลา, ราศี) ทุกคนอ่านค่าเดียวกัน ไม่เรียก AI ตอนผู้ใช้เปิดหน้า
+export const scheduledHoroscopes = pgTable(
+  "scheduled_horoscopes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    kind: text("kind").notNull(), // daily | weekly | monthly
+    periodKey: text("period_key").notNull(), // daily: 2569-10-24 (ค.ศ. YYYY-MM-DD) | weekly: วันอาทิตย์ต้นสัปดาห์ | monthly: YYYY-MM
+    sign: text("sign").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("scheduled_horoscopes_uniq").on(t.kind, t.periodKey, t.sign)]
+);
+
 export const profilesRelations = relations(profiles, ({ many }) => ({
   chatMessages: many(chatMessages),
   muBookEntries: many(muBookEntries),
@@ -132,3 +194,10 @@ export const tarotCardsRelations = relations(tarotCards, ({ many }) => ({
   dailyCardDraws: many(dailyCardDraws),
   chatMessages: many(chatMessages),
 }));
+
+// ตัวนับสำหรับจำกัดความถี่ (ดู src/lib/rate-limit.ts) — 1 แถวต่อ key ต่อหน้าต่างเวลา
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull().default(0),
+  windowStart: timestamp("window_start", { withTimezone: true }).defaultNow().notNull(),
+});

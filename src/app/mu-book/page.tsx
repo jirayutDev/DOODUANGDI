@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { BookTimeline } from "./book-timeline";
 import { createClient } from "@/lib/supabase/server";
 import { getDb } from "@/db";
 import { chatMessages } from "@/db/schema";
@@ -54,54 +53,49 @@ export default async function MuBookPage() {
   const { signedIn, entries } = await loadTimeline();
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <h1 className="mb-2 font-display text-3xl text-foreground">สมุดดวง</h1>
-      <p className="mb-8 text-sm text-muted-foreground">
-        คำตอบจาก AI น้องมูและหมอดูตัวจริง เก็บไว้เป็นไทม์ไลน์ของคุณ
+    <div className="mx-auto max-w-[1120px] px-[18px] pb-10 pt-2 md:px-10 md:pb-20 md:pt-8">
+      <p className="text-sm text-muted-foreground">สมุดดวง</p>
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">บันทึกคำทำนาย</h1>
+      <p className="mt-2.5 max-w-[560px] text-soft-text">
+        คำตอบจากน้องมูและหมอดูตัวจริง เก็บไว้ให้ย้อนอ่านได้
       </p>
 
       {!signedIn && (
-        <Card className="bg-card">
-          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-            <p className="text-sm text-muted-foreground">
-              เข้าสู่ระบบก่อนเพื่อเริ่มเก็บสมุดดวงของคุณ
-            </p>
-            <Button asChild>
-              <Link href="/chat">ไปคุยกับน้องมู</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="mt-8 flex flex-col items-center gap-3 border border-border py-10 text-center">
+          <p className="text-sm text-muted-foreground">
+            เข้าสู่ระบบก่อนเพื่อเริ่มเก็บสมุดดวงของคุณ
+          </p>
+          <Button asChild className="h-auto min-h-[50px] rounded-[14px] px-6 font-bold">
+            <Link href="/chat">ไปคุยกับน้องมู</Link>
+          </Button>
+        </div>
       )}
 
       {signedIn && entries.length === 0 && (
-        <Card className="bg-card">
-          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-            <p className="text-sm text-muted-foreground">
-              ยังไม่มีบันทึกในสมุดดวง ลองไปถามน้องมูดูก่อน
-            </p>
-            <Button asChild>
-              <Link href="/chat">คุยกับน้องมู</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="mt-8 flex flex-col items-center gap-3 border border-border py-10 text-center">
+          <p className="text-sm text-muted-foreground">
+            ยังไม่มีบันทึกในสมุดดวง ลองไปถามน้องมูดูก่อน
+          </p>
+          <Button asChild className="h-auto min-h-[50px] rounded-[14px] px-6 font-bold">
+            <Link href="/chat">คุยกับน้องมู</Link>
+          </Button>
+        </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        {entries.map((entry) => (
-          <Card key={entry.id} className="bg-card">
-            <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="font-display text-sm text-muted-foreground">
-                {entry.createdAt.toLocaleDateString("th-TH", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </CardTitle>
-              <Badge variant="secondary">{entry.source === "ai" ? "น้องมู" : "หมอดู"}</Badge>
-            </CardHeader>
-            <CardContent className="text-sm text-foreground">{entry.content}</CardContent>
-          </Card>
-        ))}
+      {entries.length > 0 && (
+        <BookTimeline
+          entries={entries.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() }))}
+        />
+      )}
+
+      <div className="mt-16 flex flex-col items-center gap-1 text-center">
+        <h2 className="text-[21px] font-bold leading-[1.5]">ยังมีเรื่องอยากถามอีกไหม?</h2>
+        <Link
+          href="/chat"
+          className="inline-flex min-h-11 items-center gap-1 font-semibold text-primary hover:text-cream"
+        >
+          คุยกับน้องมู <span aria-hidden="true">›</span>
+        </Link>
       </div>
     </div>
   );

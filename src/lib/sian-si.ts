@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 // เซียมซี 28 เบอร์ — ใช้โครงสร้างจริงตามธรรมเนียมเซียมซีไทย/จีน (4 ทิศ x 7 ดาวบริวาร = 28 เบอร์)
 // กลอนและคำทำนายแต่ละเบอร์เป็นการประพันธ์ขึ้นเองในโทนน้องมู ไม่ได้คัดลอกจากเซียมซีวัดใดวัดหนึ่ง
 // (แต่ละวัดมีชุดคำทำนายของตัวเองต่างกัน จึงไม่มีชุดกลางที่ใช้ร่วมกันทั่วประเทศ)
@@ -40,5 +41,5 @@ export const SIAN_SI_FORTUNES: SianSiFortune[] = [
 ];
 
 export function drawSianSi(): SianSiFortune {
-  return SIAN_SI_FORTUNES[Math.floor(Math.random() * SIAN_SI_FORTUNES.length)];
+  return SIAN_SI_FORTUNES[randomInt(SIAN_SI_FORTUNES.length)];
 }

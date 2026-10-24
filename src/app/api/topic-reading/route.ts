@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateTopicReading, isCrisisMessage, CRISIS_REPLY } from "@/lib/mu-ai";
-import type { BirthProfile } from "@/lib/astrology";
+import { z } from "zod";
+import { generateTopicReading, isCrisisMessage, isValidBirthDate, serverProfile, CRISIS_REPLY } from "@/lib/mu-ai";
+import { ZODIAC_SIGN_NAMES } from "@/lib/astrology";
+import { chargeFeature } from "@/lib/coins";
 
 interface TopicConfig {
   topicName: string;
@@ -10,10 +12,9 @@ interface TopicConfig {
 }
 
 // นิยามหัวข้อฝั่ง server เท่านั้น กัน client ยัดคำสั่งปลอมมาหลอก AI
+// weekly/monthly ให้บริการฟรีผ่าน /api/horoscope (แคช) จึงไม่อยู่ที่นี่
 const TOPICS: Record<string, TopicConfig> = {
-  weekly: { topicName: "ดวงรายสัปดาห์", timeframe: "สัปดาห์นี้" },
   biweekly: { topicName: "ดวงรายปักษ์", timeframe: "ช่วง 15 วันนี้" },
-  monthly: { topicName: "ดวงรายเดือน", timeframe: "เดือนนี้" },
   "half-year-2569": { topicName: "ดวงภาพรวม", timeframe: "ครึ่งปีหลัง 2569" },
   "year-2569": { topicName: "ดวงภาพรวม", timeframe: "ตลอดปี 2569" },
   "chinese-year-2569": { topicName: "ดวงจีนตามปีนักษัตร", timeframe: "ปี 2569" },
@@ -36,38 +37,73 @@ const TOPICS: Record<string, TopicConfig> = {
   "life-graph": { topicName: "กราฟชีวิตภาพรวม", timeframe: "ช่วงนี้ถึงอนาคตอันใกล้" },
 };
 
-interface Body {
-  slug?: string;
-  profile?: (BirthProfile & { birthDate: string }) | null;
-  partnerZodiac?: string;
-}
+const bodySchema = z.object({
+  slug: z.string().max(40),
+  // รับเฉพาะ birthDate แล้วคำนวณโปรไฟล์ใหม่ฝั่ง server (field อื่นรวม birthTime/province ถูกทิ้ง)
+  profile: z.object({ birthDate: z.string().max(10) }).nullish(),
+  partnerZodiac: z.string().max(20).optional(),
+});
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as Body;
-  const config = body.slug ? TOPICS[body.slug] : undefined;
-  if (!config) {
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid payload" }, { status: 400 });
+  }
+  const parsed = bodySchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid payload" }, { status: 400 });
+  }
+  const body = parsed.data;
+
+  if (body.slug === "weekly" || body.slug === "monthly") {
+    return NextResponse.json({ error: "ใช้ /api/horoscope" }, { status: 400 });
+  }
+  if (!Object.hasOwn(TOPICS, body.slug)) {
     return NextResponse.json({ error: "ไม่พบหัวข้อนี้" }, { status: 400 });
   }
+  const config = TOPICS[body.slug];
 
-  if (config.needsPartnerZodiac && body.partnerZodiac && isCrisisMessage(body.partnerZodiac)) {
-    return NextResponse.json({ reading: CRISIS_REPLY });
+  let partnerZodiac: string | undefined;
+  if (config.needsPartnerZodiac && body.partnerZodiac) {
+    if (isCrisisMessage(body.partnerZodiac)) {
+      return NextResponse.json({ reading: CRISIS_REPLY });
+    }
+    if (!ZODIAC_SIGN_NAMES.includes(body.partnerZodiac)) {
+      return NextResponse.json({ error: "ราศีไม่ถูกต้อง" }, { status: 400 });
+    }
+    partnerZodiac = body.partnerZodiac;
   }
 
   // ไม่มีวันเกิดจริง = ไม่มีข้อมูลให้ทำนาย ปฏิเสธแทนที่จะให้ AI เดามั่วๆ
-  if (!body.profile?.birthDate) {
+  const birthDate = body.profile?.birthDate;
+  if (!birthDate || !isValidBirthDate(birthDate)) {
     return NextResponse.json(
       { error: "ต้องกรอกวันเกิดที่หน้าดวงโปรไฟล์ก่อนถึงจะดูดวงเรื่องนี้ได้" },
       { status: 400 }
     );
   }
+  const profile = serverProfile(birthDate);
 
-  const reading = await generateTopicReading({
-    topicName: config.topicName,
-    timeframe: config.timeframe,
-    profile: body.profile ?? null,
-    partnerZodiac: config.needsPartnerZodiac ? body.partnerZodiac : undefined,
-    extraRule: config.extraRule,
-  });
+  const charge = await chargeFeature("topic-reading");
+  if (!charge.ok) return charge.res;
 
+  let reading: string | null;
+  try {
+    reading = await generateTopicReading({
+      topicName: config.topicName,
+      timeframe: config.timeframe,
+      profile,
+      partnerZodiac,
+      extraRule: config.extraRule,
+    });
+  } catch {
+    reading = null;
+  }
+  if (!reading) {
+    await charge.refund();
+    return NextResponse.json({ error: "ดูดวงไม่สำเร็จ ลองใหม่อีกครั้งนะ" }, { status: 503 });
+  }
   return NextResponse.json({ reading, topicName: config.topicName, timeframe: config.timeframe });
 }

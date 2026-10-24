@@ -1,20 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useStoredJson } from "@/lib/use-stored-json";
 import { calculateBirthProfile, type BirthProfile } from "@/lib/astrology";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+const GENDERS = [
+  { value: "female", label: "หญิง" },
+  { value: "male", label: "ชาย" },
+  { value: "other", label: "อื่นๆ" },
+];
+
+const fieldLabel = "text-sm font-medium text-foreground";
+const fieldInput =
+  "h-[50px] rounded-xl border-0 bg-cream px-3.5 text-base text-ink placeholder:text-ink/50 md:text-base [color-scheme:light]";
 
 const STORAGE_KEY = "ommu:birth-profile";
 
@@ -33,21 +37,18 @@ export default function ProfilePage() {
   const [result, setResult] = useState<StoredProfile | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as StoredProfile;
-        setResult(parsed);
-        setBirthDate(parsed.birthDate);
-        setBirthTime(parsed.birthTime ?? "");
-        setBirthProvince(parsed.birthProvince ?? "");
-        setGender(parsed.gender ?? "");
-      }
-    } catch {
-      // localStorage อาจใช้ไม่ได้ (private mode) — ปล่อยให้ฟอร์มว่างไว้
+  const { value: stored, checked } = useStoredJson<StoredProfile>(STORAGE_KEY);
+  const [seeded, setSeeded] = useState(false);
+  if (checked && !seeded) {
+    setSeeded(true);
+    if (stored) {
+      setResult(stored);
+      setBirthDate(stored.birthDate);
+      setBirthTime(stored.birthTime ?? "");
+      setBirthProvince(stored.birthProvince ?? "");
+      setGender(stored.gender ?? "");
     }
-  }, []);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -105,88 +106,106 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <h1 className="mb-2 font-display text-3xl text-foreground">ดวงโปรไฟล์</h1>
-      <p className="mb-8 text-sm text-muted-foreground">
-        กรอกข้อมูลเกิดครั้งเดียว ทุกศาสตร์ในเว็บจะดึงข้อมูลนี้ไปใช้ร่วมกัน
+    <div className="mx-auto max-w-[1120px] px-[18px] pb-10 pt-2 md:px-10 md:pb-20 md:pt-8">
+      <p className="text-sm text-muted-foreground">ดวงโปรไฟล์</p>
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">บอกวันเกิดหน่อย</h1>
+      <p className="mt-2.5 max-w-[560px] text-soft-text">
+        กรอกข้อมูลเกิดครั้งเดียว ทุกศาสตร์ในเว็บจะดึงข้อมูลนี้ไปใช้ร่วมกัน ยิ่งกรอกละเอียด ดวงยิ่งแม่น
       </p>
 
-      <Card className="bg-card">
-        <CardContent className="pt-6">
-          <form onSubmit={handleSubmit} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="birthDate">วันเดือนปีเกิด *</Label>
-              <Input
-                id="birthDate"
-                type="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-                required
-              />
+      <div className="mt-8 flex flex-wrap items-start gap-x-20 gap-y-12">
+        <form onSubmit={handleSubmit} className="flex min-w-0 flex-1 basis-[320px] flex-col gap-[18px]">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="birthDate" className={fieldLabel}>
+              วันเดือนปีเกิด
+            </Label>
+            <Input
+              id="birthDate"
+              type="date"
+              className={fieldInput}
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="birthTime" className={fieldLabel}>
+              เวลาเกิด <span className="text-[13px] text-muted-foreground">(ถ้ามี)</span>
+            </Label>
+            <Input
+              id="birthTime"
+              type="time"
+              className={fieldInput}
+              value={birthTime}
+              onChange={(e) => setBirthTime(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="birthProvince" className={fieldLabel}>
+              จังหวัดเกิด <span className="text-[13px] text-muted-foreground">(ถ้ามี)</span>
+            </Label>
+            <Input
+              id="birthProvince"
+              className={fieldInput}
+              placeholder="เช่น กรุงเทพฯ"
+              value={birthProvince}
+              onChange={(e) => setBirthProvince(e.target.value)}
+            />
+          </div>
+          <fieldset>
+            <legend className="mb-1.5 p-0 text-sm text-muted-foreground">
+              เพศ <span className="text-[15px]">ไม่บังคับ</span>
+            </legend>
+            <div role="group" className="inline-flex flex-wrap gap-1.5 rounded-[14px] bg-card p-1">
+              {GENDERS.map((g) => (
+                <button
+                  key={g.value}
+                  type="button"
+                  aria-pressed={gender === g.value}
+                  onClick={() => setGender(gender === g.value ? "" : g.value)}
+                  className={cn(
+                    "min-h-10 rounded-[10px] px-3.5 text-sm transition-colors",
+                    gender === g.value
+                      ? "bg-cream font-bold text-ink"
+                      : "font-medium text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {g.label}
+                </button>
+              ))}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="birthTime">เวลาเกิด (ถ้ามี)</Label>
-                <Input
-                  id="birthTime"
-                  type="time"
-                  value={birthTime}
-                  onChange={(e) => setBirthTime(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="birthProvince">จังหวัดเกิด</Label>
-                <Input
-                  id="birthProvince"
-                  placeholder="เช่น กรุงเทพฯ"
-                  value={birthProvince}
-                  onChange={(e) => setBirthProvince(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="gender">เพศ</Label>
-              <Select value={gender} onValueChange={setGender}>
-                <SelectTrigger id="gender">
-                  <SelectValue placeholder="เลือกเพศ (ไม่บังคับ)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="female">หญิง</SelectItem>
-                  <SelectItem value="male">ชาย</SelectItem>
-                  <SelectItem value="other">อื่นๆ</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" disabled={saving}>
-              {saving ? "กำลังคำนวณ..." : "คำนวณดวงโปรไฟล์"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </fieldset>
+          <Button
+            type="submit"
+            disabled={saving}
+            className="mt-2 h-auto min-h-[50px] w-full rounded-[14px] text-base font-bold"
+          >
+            {saving ? "กำลังคำนวณ..." : "คำนวณดวงของฉัน"}
+          </Button>
+        </form>
 
-      {result && (
-        <Card className="mt-6 rounded-[var(--radius-card)] border-primary/30 bg-card">
-          <CardHeader>
-            <CardTitle className="font-display text-xl">ผลดวงโปรไฟล์ของคุณ</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-            <ProfileStat label="ราศี" value={result.zodiacSign} />
-            <ProfileStat label="วันเกิดไทย" value={`วัน${result.thaiBirthDay}`} />
-            <ProfileStat label="สีมงคล" value={result.luckyColor} />
-            <ProfileStat label="ปีนักษัตร" value={result.chineseZodiac} />
-            <ProfileStat label="เลขศาสตร์" value={String(result.lifePathNumber)} />
-          </CardContent>
-        </Card>
-      )}
+        {result && (
+          <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-3.5">
+            <h2 className="text-[26px] font-bold leading-[1.5]">ผลดวงโปรไฟล์ของเธอ</h2>
+            <dl className="rounded-[18px] bg-card px-[18px] py-1">
+              <ProfileStat label="ราศี" value={result.zodiacSign} />
+              <ProfileStat label="วันเกิดไทย" value={`วัน${result.thaiBirthDay}`} />
+              <ProfileStat label="สีมงคล" value={result.luckyColor} />
+              <ProfileStat label="ปีนักษัตร" value={result.chineseZodiac} />
+              <ProfileStat label="เลขศาสตร์" value={String(result.lifePathNumber)} />
+            </dl>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function ProfileStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-muted p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-display text-lg text-foreground">{value}</p>
+    <div className="flex items-center justify-between gap-4 border-b border-border py-[13px] last:border-b-0">
+      <dt className="text-[15px] text-muted-foreground">{label}</dt>
+      <dd className="text-right text-[17px] font-bold">{value}</dd>
     </div>
   );
 }

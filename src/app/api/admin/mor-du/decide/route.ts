@@ -1,30 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
+import { z } from "zod";
+import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { morDus } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+const bodySchema = z.object({
+  userId: z.string().uuid(),
+  action: z.enum(["approve", "reject"]),
+});
 
-  if (!isAdminEmail(user?.email)) {
+export async function POST(req: NextRequest) {
+  const admin = await getAdminUser();
+  if (!admin) {
     return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 });
   }
 
-  const body = (await req.json()) as { userId?: string; action?: "approve" | "reject" };
-  if (!body.userId || !body.action) {
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
+  const parsed = bodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid payload" }, { status: 400 });
+  }
+  const { userId, action } = parsed.data;
 
   const db = getDb();
   await db
     .update(morDus)
-    .set({ status: body.action === "approve" ? "approved" : "rejected", updatedAt: new Date() })
-    .where(eq(morDus.userId, body.userId));
+    .set({ status: action === "approve" ? "approved" : "rejected", updatedAt: new Date() })
+    .where(eq(morDus.userId, userId));
 
   return NextResponse.json({ ok: true });
 }

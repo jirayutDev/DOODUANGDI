@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { TAROT_CARDS, type TarotCard } from "@/lib/tarot-data";
+import { FEATURE_COSTS } from "@/lib/coin-config";
+import { handleCoinError } from "@/lib/coin-client";
 import { SPREADS, type Spread } from "@/lib/spreads";
 
 interface DrawnCard {
@@ -111,76 +111,203 @@ export default function ReadingPage() {
         })),
       }),
     })
-      .then((res) => res.json())
-      .then((data) => setSummary(data.summary ?? null))
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          handleCoinError(data);
+          return null;
+        }
+        if (data?.summary) window.dispatchEvent(new Event("coins:changed"));
+        return data?.summary ?? null;
+      })
+      .then((text) => setSummary(text))
       .catch(() => setSummary(null))
       .finally(() => setSummaryLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, pickedIndices]);
 
+  const isSetup = phase === "idle" || phase === "shuffling";
+  const shuffling = phase === "shuffling";
+  const nextPos = pickedIndices.length < needed ? spread.positions[pickedIndices.length] : "";
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="mb-2 font-display text-3xl text-foreground">เปิดไพ่ดูดวง</h1>
-      <p className="mb-6 text-sm text-muted-foreground">
-        เลือกรูปแบบการวางไพ่ที่เหมาะกับคำถามของคุณ แล้วสับไพ่และเลือกไพ่เองได้เลย
-      </p>
+    <div className="mx-auto w-full max-w-[1120px] px-[18px] pb-10 pt-1 md:px-10 md:pb-20 md:pt-8">
+      {isSetup && (
+        <div className="md:grid md:grid-cols-[1fr_1.1fr] md:items-start md:gap-14">
+          <div>
+            <p className="text-sm text-muted-foreground">ขั้นที่ 1 จาก 2</p>
+            <h1 className="mt-0.5 text-[26px] font-bold leading-[1.45] md:text-[34px]">วันนี้อยากถามอะไร</h1>
+            <label htmlFor="question" className="mt-3.5 block">
+              <span className="mb-1.5 block text-sm text-muted-foreground">คำถาม (ไม่ใส่ก็ได้)</span>
+              <textarea
+                id="question"
+                rows={3}
+                placeholder="เช่น คนคุยตอนนี้จะไปต่อไหม"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                disabled={shuffling}
+                className="w-full resize-none rounded-[14px] border-0 bg-cream px-4 py-3.5 text-base leading-relaxed text-ink outline-none placeholder:text-ink/50"
+              />
+            </label>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {ASK_CHIPS.map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  disabled={shuffling}
+                  onClick={() => setQuestion((q) => (q.trim() ? `${q.trim()} ${a}` : a))}
+                  className="min-h-[34px] cursor-pointer rounded-full border border-line-soft px-3 text-[13px] text-soft-text"
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <div className="mb-6 grid gap-2">
-        <Label htmlFor="question">อยากถามเรื่องอะไร (ไม่บังคับ)</Label>
-        <Textarea
-          id="question"
-          placeholder="เช่น ความรักกับคนคุยตอนนี้จะไปต่อไหม"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          rows={2}
-          disabled={phase === "picking" || phase === "shuffling"}
-        />
-      </div>
+          <div>
+            <h2 className="mt-7 text-[17px] font-bold leading-normal md:mt-0">เลือกแบบวางไพ่</h2>
+            <div role="radiogroup" aria-label="แบบวางไพ่" className="mt-2.5 flex flex-col gap-2.5">
+              {SPREADS.map((s) => {
+                const on = spreadId === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => handleChangeSpread(s.id)}
+                    disabled={shuffling}
+                    className={cn(
+                      "flex w-full cursor-pointer items-center gap-3.5 rounded-2xl border-2 p-3 text-left",
+                      on ? "border-primary bg-[#2A2250] text-primary" : "border-transparent bg-secondary text-[#6E64A0]"
+                    )}
+                  >
+                    <SpreadMini layout={s.layout} />
+                    <span className="flex flex-1 flex-col leading-normal">
+                      <span className="font-bold text-foreground">{s.name}</span>
+                      <span className="text-[13px] text-muted-foreground">{s.description}</span>
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap text-[13px] text-muted-foreground">
+                      {s.positions.length} ใบ
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={handleShuffle}
+              disabled={shuffling}
+              className="mt-[18px] min-h-[52px] w-full cursor-pointer rounded-[14px] bg-primary text-base font-bold text-primary-foreground disabled:opacity-70"
+            >
+              {shuffling ? "กำลังสับไพ่..." : `สับไพ่ ${needed} ใบ`}
+            </button>
+            <p className="mt-2 text-center text-[13px] text-muted-foreground">
+              เปิดไพ่ได้ฟรี · ให้น้องมูสรุปผลใช้ {FEATURE_COSTS["reading-summary"].cost} coin
+            </p>
+          </div>
+        </div>
+      )}
 
-      <div className="mb-8 grid gap-3 sm:grid-cols-2">
-        {SPREADS.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => handleChangeSpread(s.id)}
-            className={cn(
-              "rounded-[var(--radius-card)] border p-4 text-left transition-colors",
-              spreadId === s.id
-                ? "border-primary bg-primary/10"
-                : "border-border bg-card hover:border-primary/40"
-            )}
-          >
-            <p className="font-display text-base text-foreground">{s.name}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{s.description}</p>
-          </button>
-        ))}
-      </div>
-
-      <div className="mb-10 flex justify-center">
-        <Button size="lg" onClick={handleShuffle} disabled={phase === "shuffling"}>
-          {phase === "shuffling"
-            ? "กำลังสับไพ่..."
-            : phase === "picking"
-              ? "สับไพ่ใหม่"
-              : phase === "done"
-                ? "สับไพ่ใหม่"
-                : "สับไพ่"}
-        </Button>
-      </div>
-
-      {phase === "shuffling" && <ShuffleAnimation />}
+      {shuffling && (
+        <div className="mt-8">
+          <ShuffleAnimation />
+        </div>
+      )}
 
       {phase === "picking" && (
-        <DeckFan deck={deck} picked={pickedIndices} needed={needed} onPick={handlePick} />
+        <>
+          <p className="text-sm text-muted-foreground">ขั้นที่ 2 จาก 2 · {spread.name}</p>
+          <h1 className="mt-0.5 text-[26px] font-bold leading-[1.45] md:text-[34px]">เลือกไพ่ทีละใบ</h1>
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-[14px] bg-secondary px-4 py-3">
+            <span className="flex flex-col leading-normal">
+              <span className="text-[13px] text-muted-foreground">ใบถัดไป</span>
+              <span className="font-semibold">{nextPos || "เลือกครบแล้ว"}</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-cream px-3 py-1 font-bold text-ink">
+              {pickedIndices.length} / {needed}
+            </span>
+          </div>
+          <div className="mt-6">
+            <DeckFan deck={deck} picked={pickedIndices} needed={needed} onPick={handlePick} />
+          </div>
+          <div className="flex flex-wrap justify-center gap-2.5 text-center">
+            <button
+              type="button"
+              onClick={handleShuffle}
+              className="min-h-11 cursor-pointer rounded-xl bg-[#2A2250] px-4 text-foreground"
+            >
+              สับไพ่ใหม่
+            </button>
+            <button
+              type="button"
+              onClick={() => handleChangeSpread(spreadId)}
+              className="min-h-11 cursor-pointer rounded-xl bg-[#2A2250] px-4 text-foreground"
+            >
+              เปลี่ยนแบบวางไพ่
+            </button>
+          </div>
+        </>
       )}
 
       {phase === "done" && result.length === needed && (
         <>
+          <p className="text-sm text-muted-foreground">{spread.name}</p>
+          <h1 className="mb-5 mt-0.5 text-[26px] font-bold leading-[1.45] md:text-[34px]">ไพ่ของเธอ</h1>
           <SpreadResult spread={spread} drawn={result} />
           <SummarySection loading={summaryLoading} summary={summary} />
+          <p className="mt-3 text-center text-[13px] text-muted-foreground">
+            น้องมูสรุปผลเปิดไพ่ ใช้ {FEATURE_COSTS["reading-summary"].cost} coin · ต้องเข้าสู่ระบบและเป็นสมาชิก
+          </p>
           <SpreadDetailList spread={spread} drawn={result} />
+          <div className="mt-[18px] flex flex-wrap justify-center gap-2.5">
+            <Link
+              href="/chat"
+              className="inline-flex min-h-[50px] items-center justify-center rounded-[14px] bg-primary px-[22px] font-bold text-primary-foreground no-underline"
+            >
+              ถามน้องมูต่อ
+            </Link>
+            <button
+              type="button"
+              onClick={() => handleChangeSpread(spreadId)}
+              className="min-h-[50px] cursor-pointer rounded-[14px] bg-[#2A2250] px-[22px] font-semibold text-foreground"
+            >
+              เปิดใหม่
+            </button>
+            <button
+              type="button"
+              onClick={handleShuffle}
+              className="min-h-[50px] cursor-pointer rounded-[14px] px-[22px] text-soft-text"
+            >
+              สับไพ่ใหม่
+            </button>
+          </div>
         </>
       )}
     </div>
+  );
+}
+
+const ASK_CHIPS = ["ความรัก", "การเรียน", "การงาน", "การเงิน"];
+
+// ไอคอนจิ๋วแสดงรูปแบบการวางไพ่ (ตำแหน่ง x, y และหมุน 90 องศาหรือไม่)
+const MINI_SLOTS: Record<string, [number, number, boolean?][]> = {
+  row: [[12, 23], [26, 23], [40, 23]],
+  diamond: [[26, 8], [19, 23], [33, 23], [26, 38]],
+  celtic: [[15, 23], [15, 23, true], [15, 4], [15, 42], [2, 23], [28, 23], [47, 2], [47, 17], [47, 32], [47, 47]],
+};
+
+function SpreadMini({ layout }: { layout: string }) {
+  return (
+    <span aria-hidden="true" className="relative size-16 shrink-0 rounded-[10px] bg-background">
+      {(MINI_SLOTS[layout] ?? MINI_SLOTS.row).map(([x, y, rot], i) => (
+        <span
+          key={i}
+          className="absolute h-[18px] w-[11px] rounded-[2px] bg-current"
+          style={{ left: x, top: y, transform: rot ? "rotate(90deg)" : undefined }}
+        />
+      ))}
+    </span>
   );
 }
 
@@ -363,11 +490,11 @@ function SpreadResult({ spread, drawn }: { spread: Spread; drawn: DrawnCard[] })
 
 function SpreadDetailList({ spread, drawn }: { spread: Spread; drawn: DrawnCard[] }) {
   return (
-    <div className="mx-auto mt-8 flex max-w-xl flex-col gap-3">
+    <div className="mx-auto mt-6 flex max-w-[760px] flex-col gap-3">
       {drawn.map((d, i) => {
         const meaning = d.reversed ? d.card.reversedMeaning : d.card.uprightMeaning;
         return (
-          <Card key={i} className="bg-card">
+          <Card key={i} className="border-line-soft bg-secondary">
             <CardContent className="p-4 text-sm">
               <p className="mb-1 text-xs text-muted-foreground">
                 ใบที่ {i + 1} · {spread.positions[i]}
@@ -457,15 +584,13 @@ function SummarySection({ loading, summary }: { loading: boolean; summary: strin
   if (!loading && !summary) return null;
 
   return (
-    <Card className="mx-auto mt-8 max-w-xl bg-card">
-      <CardContent className="flex flex-col gap-2 p-5">
-        <p className="font-display text-base text-primary">น้องมูสรุปให้</p>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">กำลังแปลผลไพ่ทั้งชุด...</p>
-        ) : (
-          <p className="whitespace-pre-line text-sm text-foreground">{summary}</p>
-        )}
-      </CardContent>
-    </Card>
+    <div className="mx-auto mt-[26px] max-w-[760px] rounded-[18px] bg-cream px-[18px] py-4 text-ink">
+      <p className="text-[13px] font-bold text-[#5A4F80]">น้องมูอ่านไพ่ให้</p>
+      {loading ? (
+        <p className="mt-1.5 text-base">กำลังแปลผลไพ่ทั้งชุด...</p>
+      ) : (
+        <p className="mt-1.5 whitespace-pre-line text-base leading-[1.75]">{summary}</p>
+      )}
+    </div>
   );
 }

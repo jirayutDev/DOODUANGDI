@@ -1,0 +1,31 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { chargeFeature } from "@/lib/coins";
+import { analyzeNumber } from "@/lib/numerology";
+
+const Body = z.object({
+  value: z
+    .string()
+    .max(40)
+    .refine((v) => /\d/.test(v)),
+});
+
+export async function POST(req: NextRequest) {
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid json" }, { status: 400 });
+  }
+  const parsed = Body.safeParse(raw);
+  if (!parsed.success) return NextResponse.json({ error: "invalid input" }, { status: 400 });
+
+  const charge = await chargeFeature("numerology");
+  if (!charge.ok) return charge.res;
+  try {
+    return NextResponse.json({ result: analyzeNumber(parsed.data.value) });
+  } catch {
+    await charge.refund();
+    return NextResponse.json({ error: "เกิดข้อผิดพลาด ลองใหม่อีกครั้งนะ" }, { status: 500 });
+  }
+}

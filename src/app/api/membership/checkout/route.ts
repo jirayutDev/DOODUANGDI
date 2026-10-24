@@ -1,10 +1,11 @@
+import { and, count, eq, gte } from "drizzle-orm";
+import { rateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
-import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/server";
 import { getDb } from "@/db";
 import { payments } from "@/db/schema";
 import { getMembershipPlan } from "@/lib/membership-plans";
-import { generatePromptPayPayload } from "@/lib/promptpay";
+import { createPaymentQrDataUrl } from "@/lib/payment-qr";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -16,7 +17,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "กรุณาเข้าสู่ระบบก่อน" }, { status: 401 });
   }
 
-  const body = (await req.json()) as { plan?: string };
+
+  if (!(await rateLimit(`checkout:${user.id}`, 10, 60 * 60 * 1000))) {
+    return NextResponse.json({ error: "ทำรายการถี่เกินไป ลองใหม่ภายหลังนะ" }, { status: 429 });
+  }
+  const [{ n }] = await getDb()
+    .select({ n: count() })
+    .from(payments)
+    .where(
+      and(eq(payments.userId, user.id), eq(payments.status, "pending"), gte(payments.createdAt, new Date(Date.now() - 60 * 60 * 1000)))
+    );
+  if (n >= 3) {
+    return NextResponse.json({ error: "มีรายการรอชำระหลายรายการแล้ว ชำระหรือรอสักครู่ก่อนนะ" }, { status: 429 });
+  }
+
+  let body: { plan?: string };
+  try {
+    body = (await req.json()) as { plan?: string };
+  } catch {
+    return NextResponse.json({ error: "invalid payload" }, { status: 400 });
+  }
+
   const plan = getMembershipPlan(body.plan ?? "");
   if (!plan) {
     return NextResponse.json({ error: "ไม่พบแพ็กเกจนี้" }, { status: 400 });
@@ -25,7 +46,7 @@ export async function POST(req: NextRequest) {
   const promptpayId = process.env.PROMPTPAY_ID;
   if (!promptpayId) {
     return NextResponse.json(
-      { error: "ระบบยังไม่ได้ตั้งค่าเลขพร้อมเพย์ (PROMPTPAY_ID) — ติดต่อแอดมิน" },
+      { error: "ระบบชำระเงินยังไม่พร้อมใช้งาน ติดต่อแอดมิน" },
       { status: 503 }
     );
   }
@@ -44,8 +65,7 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    const payload = generatePromptPayPayload(promptpayId, plan.priceBaht, ref);
-    const qrDataUrl = await QRCode.toDataURL(payload, { margin: 1, width: 320 });
+    const qrDataUrl = await createPaymentQrDataUrl(promptpayId, plan.priceBaht, ref);
 
     return NextResponse.json({
       paymentId: payment.id,
@@ -56,7 +76,7 @@ export async function POST(req: NextRequest) {
     });
   } catch {
     return NextResponse.json(
-      { error: "สร้างรายการชำระเงินไม่สำเร็จ — เช็กว่าต่อ Supabase/DATABASE_URL แล้วหรือยัง" },
+      { error: "สร้างรายการชำระเงินไม่สำเร็จ ลองใหม่อีกครั้งนะ" },
       { status: 500 }
     );
   }

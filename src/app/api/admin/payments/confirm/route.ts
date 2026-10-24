@@ -1,58 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
-import { getDb } from "@/db";
-import { payments, memberships } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { getAdminUser } from "@/lib/admin";
+import { fulfillPayment } from "@/lib/payments";
 
-const MEMBERSHIP_DURATION_DAYS = 30;
+const Body = z.object({ paymentId: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!isAdminEmail(user?.email)) {
+  const admin = await getAdminUser();
+  if (!admin) {
     return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 });
   }
 
-  const body = (await req.json()) as { paymentId?: string };
-  if (!body.paymentId) {
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid payload" }, { status: 400 });
+  }
+  const parsed = Body.safeParse(raw);
+  if (!parsed.success) {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
 
-  const db = getDb();
-  const [payment] = await db
-    .select()
-    .from(payments)
-    .where(eq(payments.id, body.paymentId))
-    .limit(1);
-
-  if (!payment) {
-    return NextResponse.json({ error: "ไม่พบรายการ" }, { status: 404 });
+  const result = await fulfillPayment(parsed.data.paymentId);
+  if (result === "not_found") return NextResponse.json({ error: "ไม่พบรายการ" }, { status: 404 });
+  if (result === "rejected") {
+    return NextResponse.json({ error: "รายการนี้ถูกปฏิเสธไปแล้ว ยืนยันไม่ได้" }, { status: 409 });
   }
-
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + MEMBERSHIP_DURATION_DAYS * 24 * 60 * 60 * 1000);
-
-  await db
-    .update(payments)
-    .set({ status: "confirmed", confirmedAt: now })
-    .where(eq(payments.id, payment.id));
-
-  await db
-    .insert(memberships)
-    .values({
-      userId: payment.userId,
-      plan: payment.purpose,
-      expiresAt,
-      lastPaymentId: payment.id,
-    })
-    .onConflictDoUpdate({
-      target: memberships.userId,
-      set: { plan: payment.purpose, expiresAt, lastPaymentId: payment.id, updatedAt: now },
-    });
-
-  return NextResponse.json({ ok: true });
+  if (result === "slip_used") return NextResponse.json({ error: "สลิปนี้ถูกใช้ไปแล้ว" }, { status: 409 });
+  return NextResponse.json({ ok: true, alreadyConfirmed: result === "already_confirmed" });
 }

@@ -1,19 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
+import { getAdminUser } from "@/lib/admin";
 
 export default async function AdminPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!isAdminEmail(user?.email)) redirect("/");
+  const admin = await getAdminUser();
+  if (!admin) redirect("/");
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-12">
+    <div className="px-[18px] pb-10 pt-4 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <h1 className="mb-8 font-display text-3xl text-foreground">แอดมิน</h1>
       <div className="grid gap-4">
         <Link href="/admin/payments">

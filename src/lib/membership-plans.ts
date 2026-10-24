@@ -11,7 +11,7 @@ export const MEMBERSHIP_PLANS: MembershipPlan[] = [
     key: "ai_plus",
     name: "AI Plus",
     priceBaht: 69,
-    perks: ["แชทกับน้องมูไม่จำกัดข้อ", "ดวงรายเดือนแบบเจาะลึก", "ดูดวงคู่"],
+    perks: ["ปลดล็อกทุกบริการ (จ่ายด้วย coin)", "ดวงรายวัน/สัปดาห์/เดือนฟรีเสมอ"],
   },
   {
     key: "mu_club",
@@ -19,7 +19,7 @@ export const MEMBERSHIP_PLANS: MembershipPlan[] = [
     priceBaht: 149,
     perks: [
       "สิทธิ์ AI Plus ทั้งหมด",
-      "Coin โบนัสสมทบทุกเดือน",
+      "โบนัส 50 coin ทุกครั้งที่ต่ออายุ",
       "ส่วนลดถามหมอดูแบบเป็นข้อ",
     ],
   },

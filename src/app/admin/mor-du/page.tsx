@@ -1,20 +1,15 @@
 import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
+import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { morDus } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { MorDuActions } from "./mor-du-actions";
 
 export default async function AdminMorDuPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!isAdminEmail(user?.email)) redirect("/");
+  const admin = await getAdminUser();
+  if (!admin) redirect("/");
 
   const db = getDb();
   const list = await db
@@ -24,7 +19,7 @@ export default async function AdminMorDuPage() {
     .orderBy(desc(morDus.createdAt));
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
+    <div className="px-[18px] pb-10 pt-4 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <h1 className="mb-8 font-display text-3xl text-foreground">อนุมัติหมอดู</h1>
 
       {list.length === 0 ? (

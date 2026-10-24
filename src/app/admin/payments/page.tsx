@@ -1,20 +1,15 @@
 import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
+import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { payments } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { PaymentActions } from "./payment-actions";
 
 export default async function AdminPaymentsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!isAdminEmail(user?.email)) redirect("/");
+  const admin = await getAdminUser();
+  if (!admin) redirect("/");
 
   const db = getDb();
   const list = await db
@@ -24,7 +19,7 @@ export default async function AdminPaymentsPage() {
     .orderBy(desc(payments.createdAt));
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
+    <div className="px-[18px] pb-10 pt-4 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <h1 className="mb-8 font-display text-3xl text-foreground">ตรวจสอบการชำระเงิน</h1>
 
       {list.length === 0 ? (
@@ -36,7 +31,7 @@ export default async function AdminPaymentsPage() {
               <CardContent className="flex items-center justify-between gap-4 p-4">
                 <div className="text-sm">
                   <p className="font-display text-base text-foreground">
-                    {p.purpose === "ai_plus" ? "AI Plus" : "Mu Club"} — {p.amountBaht} บาท
+                    {p.purpose === "ai_plus" ? "AI Plus" : p.purpose === "mu_club" ? "Mu Club" : `เติม ${p.coins} coin`} — {p.amountBaht} บาท
                   </p>
                   <p className="text-xs text-muted-foreground">
                     ref: <span className="font-mono">{p.promptpayRef}</span> · user:{" "}

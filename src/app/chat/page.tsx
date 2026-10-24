@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useStoredJson } from "@/lib/use-stored-json";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
 import type { BirthProfile } from "@/lib/astrology";
 import type { TarotCard } from "@/lib/tarot-data";
-import { cn } from "@/lib/utils";
+import { FEATURE_COSTS } from "@/lib/coin-config";
+import { handleCoinError } from "@/lib/coin-client";
 
 const PROFILE_KEY = "ommu:birth-profile";
-const QUOTA_KEY_PREFIX = "ommu:quota:";
-const DAILY_QUOTA = 3;
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -21,43 +18,36 @@ interface ChatMessage {
   card?: TarotCard | null;
 }
 
-function todayKey() {
-  return `${QUOTA_KEY_PREFIX}${new Date().toISOString().slice(0, 10)}`;
+// useSearchParams ต้องอยู่ใน Suspense เพื่อให้หน้ายัง prerender ได้
+export default function ChatPage() {
+  return (
+    <Suspense>
+      <ChatPageInner />
+    </Suspense>
+  );
 }
 
-export default function ChatPage() {
+function ChatPageInner() {
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
       content: "สวัสดีนะ น้องมูเองจ้า วันนี้มีเรื่องอะไรค้างใจ ถามได้เลย 🐭",
     },
   ]);
-  const [input, setInput] = useState("");
+  // ข้อความจากช่องถามหน้าแรก (?q=) เติมไว้ในช่องให้ ไม่ส่งเองเพราะการถามหัก coin
+  const [input, setInput] = useState(() => (searchParams.get("q") ?? "").slice(0, 500));
   const [loading, setLoading] = useState(false);
-  const [quotaUsed, setQuotaUsed] = useState(0);
-  const [profile, setProfile] = useState<(BirthProfile & { birthDate: string }) | null>(null);
+  const { value: profile } = useStoredJson<BirthProfile & { birthDate: string }>(PROFILE_KEY);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    try {
-      const rawProfile = localStorage.getItem(PROFILE_KEY);
-      if (rawProfile) setProfile(JSON.parse(rawProfile));
-      const rawQuota = localStorage.getItem(todayKey());
-      if (rawQuota) setQuotaUsed(Number(rawQuota) || 0);
-    } catch {
-      // ใช้ localStorage ไม่ได้ ก็เริ่มนับจาก 0
-    }
-  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const quotaLeft = Math.max(0, DAILY_QUOTA - quotaUsed);
-
   async function handleSend() {
     const text = input.trim();
-    if (!text || loading || quotaLeft <= 0) return;
+    if (!text || loading) return;
 
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: text }]);
@@ -71,21 +61,23 @@ export default function ChatPage() {
           message: text,
           profile,
           history: messages.map(({ role, content }) => ({ role, content })),
-          clientQuotaUsed: quotaUsed,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        if (!handleCoinError(data)) throw new Error("chat failed");
+        // เอาข้อความที่ส่งไม่สำเร็จกลับไปไว้ในช่องพิมพ์
+        setMessages((prev) => prev.slice(0, -1));
+        setInput(text);
+        return;
+      }
 
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: data.reply, card: data.card },
       ]);
-      setQuotaUsed(data.quotaUsed);
-      try {
-        localStorage.setItem(todayKey(), String(data.quotaUsed));
-      } catch {
-        // ข้ามได้ถ้าเก็บไม่ได้
-      }
+      window.dispatchEvent(new Event("coins:changed"));
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -97,81 +89,134 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-4rem-3.5rem)] max-w-2xl flex-col px-4 py-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="font-display text-2xl text-foreground">แชทกับน้องมู</h1>
-        <Badge variant={quotaLeft > 0 ? "secondary" : "destructive"}>
-          เหลือ {quotaLeft}/{DAILY_QUOTA} ข้อวันนี้
-        </Badge>
-      </div>
+    <div className="mx-auto w-full max-w-[1120px] px-[18px] pb-10 pt-2 md:px-10 md:pb-20 md:pt-8">
+      <div className="flex flex-wrap items-start gap-x-16 gap-y-10">
+        <div className="flex min-w-0 flex-[3_1_480px] flex-col gap-3.5">
+          <p className="text-sm text-muted-foreground">ห้องสนทนา</p>
+          <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">คุยกับน้องมู</h1>
+          <p className="text-sm text-muted-foreground">
+            ตอบจากวันเกิดของเธอ · ถามข้อละ {FEATURE_COSTS.chat.cost} coin
+          </p>
 
-      <ScrollArea className="mb-4 flex-1 rounded-lg border border-border bg-card/50 p-4" ref={scrollRef}>
-        <div className="flex flex-col gap-3">
-          {messages.map((m, i) => (
-            <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-              <div
-                className={cn(
-                  "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
-                  m.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground"
+          <div
+            ref={scrollRef}
+            className="mt-2 max-h-[55dvh] overflow-y-auto border-t border-border"
+          >
+            {messages.map((m, i) => (
+              <div key={i} className="flex gap-4 border-b border-border py-3.5">
+                {m.role === "assistant" ? (
+                  <span className="w-16 shrink-0 text-xl font-bold leading-normal text-primary">น้องมู</span>
+                ) : (
+                  <span className="w-16 shrink-0 text-sm leading-normal text-muted-foreground">เธอ</span>
                 )}
-              >
-                {m.content}
-                {m.card && (
-                  <Card className="mt-2 overflow-hidden border-primary/30 bg-card">
-                    <div className="relative aspect-[7/12] w-24 mx-auto bg-muted">
-                      <Image
-                        src={m.card.imageUrl}
-                        alt={`${m.card.nameTh} (${m.card.nameEn})`}
-                        fill
-                        sizes="96px"
-                        className="object-contain"
-                      />
+                <div className="min-w-0 flex-1 whitespace-pre-wrap text-[17px]">
+                  {m.content}
+                  {m.card && (
+                    <div className="mt-3 inline-block rounded-xl border border-line-soft p-[5px] text-center">
+                      <div className="relative mx-auto aspect-[7/12] w-24 overflow-hidden rounded-xl bg-secondary">
+                        <Image
+                          src={m.card.imageUrl}
+                          alt={`${m.card.nameTh} (${m.card.nameEn})`}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                        />
+                      </div>
+                      <p className="mt-2 text-sm font-semibold tracking-widest text-primary">{m.card.nameEn}</p>
+                      <p className="text-base">{m.card.nameTh}</p>
                     </div>
-                    <CardContent className="p-3 text-center">
-                      <p className="tarot-numeral text-xs">{m.card.nameEn}</p>
-                      <p className="font-display text-base">{m.card.nameTh}</p>
-                    </CardContent>
-                  </Card>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl bg-muted px-4 py-2 text-sm text-muted-foreground">
-                น้องมูกำลังพิมพ์...
+            ))}
+            {loading && (
+              <div className="flex gap-4 border-b border-border py-3.5">
+                <span className="w-16 shrink-0" />
+                <p className="text-[17px] text-muted-foreground">น้องมูกำลังเขียน…</p>
               </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-[15px]">
+            <button
+              type="button"
+              onClick={() => setInput("ขอไพ่ 1 ใบ")}
+              className="min-h-10 cursor-pointer border-b border-dashed border-line-soft text-foreground"
+            >
+              ขอไพ่ 1 ใบ
+            </button>
+            <button
+              type="button"
+              onClick={() => setInput("ดวงความรักวันนี้")}
+              className="min-h-10 cursor-pointer border-b border-dashed border-line-soft text-foreground"
+            >
+              ดวงความรักวันนี้
+            </button>
+            <Link
+              href="/mor-du"
+              className="inline-flex min-h-10 items-center border-b border-dashed border-line-soft text-foreground no-underline"
+            >
+              คุยกับหมอดูจริง
+            </Link>
+          </div>
+
+          {(
+            <div className="mt-2 flex items-end gap-3">
+              <label className="flex flex-1 flex-col gap-0.5 text-[13px] text-muted-foreground">
+                ข้อความถึงน้องมู
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="พิมพ์คำถาม..."
+                  rows={1}
+                  className="min-h-[50px] w-full resize-none rounded-xl border-0 bg-cream px-3.5 py-3 text-base text-ink outline-none placeholder:text-ink/50"
+                />
+              </label>
+              <button
+                type="button"
+                aria-label="ส่ง"
+                onClick={handleSend}
+                disabled={loading || !input.trim()}
+                className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded bg-primary text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </button>
             </div>
           )}
+          <p className="text-center text-[13px] text-muted-foreground">
+            ถามน้องมู 1 ข้อ ใช้ {FEATURE_COSTS.chat.cost} coin · ต้องเข้าสู่ระบบและเป็นสมาชิก
+          </p>
         </div>
-      </ScrollArea>
 
-      {quotaLeft <= 0 ? (
-        <p className="rounded-lg bg-muted p-3 text-center text-sm text-muted-foreground">
-          ครบโควตาวันนี้แล้ว พรุ่งนี้มาถามต่อได้ หรือสมัคร AI Plus เพื่อคุยไม่จำกัด
-        </p>
-      ) : (
-        <div className="flex gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder="พิมพ์คำถามถึงน้องมู..."
-            rows={1}
-            className="min-h-11 resize-none"
-          />
-          <Button onClick={handleSend} disabled={loading || !input.trim()}>
-            ส่ง
-          </Button>
-        </div>
-      )}
+        <aside className="hidden min-w-0 flex-[1_1_280px] flex-col gap-3.5 pt-[120px] md:flex">
+          <div className="rounded-[18px] bg-secondary p-5">
+            <p className="text-[17px] text-muted-foreground">ปลดล็อกทุกบริการ</p>
+            <p className="mt-0.5 text-[28px] font-bold leading-[1.55]">AI Plus 69 บาท</p>
+            <p className="mb-4 mt-1.5 text-soft-text">สมัครสมาชิกเพื่อปลดล็อกทุกบริการ แล้วจ่ายด้วย coin ตามที่ใช้ ดวงรายวัน/สัปดาห์/เดือนฟรีเสมอ</p>
+            <Link
+              href="/membership"
+              className="inline-flex min-h-[50px] items-center justify-center rounded-[14px] bg-primary px-6 font-bold text-primary-foreground no-underline"
+            >
+              ดูแพ็กเกจ
+            </Link>
+          </div>
+          <div className="mt-5">
+            <h2 className="text-[21px] font-bold leading-normal">อยากคุยลึกกว่านี้?</h2>
+            <p className="text-sm text-muted-foreground">ให้หมอดูตัวจริงช่วยดูต่อได้</p>
+            <Link href="/mor-du" className="inline-flex min-h-11 items-center gap-1 font-semibold text-primary no-underline">
+              เลือกหมอดู <span aria-hidden="true">›</span>
+            </Link>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

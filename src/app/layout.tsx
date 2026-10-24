@@ -2,7 +2,7 @@
 import type { Metadata, Viewport } from "next";
 import { Charm, Cormorant_Garamond, Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
-import { SiteHeader } from "@/components/site-header";
+import { BottomBar, SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/sonner";
 
 // หัวข้อภาษาไทย ลายมือแบบไทย ให้ความรู้สึกขลัง
@@ -51,9 +51,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col antialiased">
         <SiteHeader />
         <main className="flex-1">{children}</main>
-        <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-          © 2026 ดูดวงดิ (DOODUANGD) · มีเรื่องค้างใจ ถามได้เลย
+        <footer className="bg-background pb-[72px] text-sm text-muted-foreground md:pb-0">
+          <div className="mx-auto flex max-w-[1120px] flex-wrap justify-between gap-5 border-t border-border px-[18px] pt-[22px] pb-10 md:px-10">
+            <span>© 2569 ดูดวงดิ · ดูเพื่อเป็นกำลังใจ ใช้วิจารณญาณประกอบนะ</span>
+            <span className="flex gap-5">
+              <a href="#">ติดต่อเรา</a>
+              <a href="#">เงื่อนไข</a>
+              <a href="#">ความเป็นส่วนตัว</a>
+            </span>
+          </div>
         </footer>
+        <BottomBar />
         <Toaster />
       </body>
     </html>

@@ -34,3 +34,25 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## ระบบ coin, สมาชิก และดวงตามตารางเวลา
+
+- ฟรี: ดวงรายวัน `/daily-horoscope`, รายสัปดาห์ `/duang/weekly`, รายเดือน `/duang/monthly` (ตามราศี)
+- บริการอื่นทั้งหมดต้อง ล็อกอิน + เป็นสมาชิก + จ่าย coin ราคาแก้ที่ `src/lib/coin-config.ts`
+- เติม coin: `/coins` (PromptPay QR) และแลกโค้ด; แอดมินสร้างโค้ดที่ `/admin/codes`
+- หลังแก้ schema ให้รัน `npx drizzle-kit push` (ตารางใหม่: coin_wallets, coin_transactions, coin_codes, coin_code_redemptions, scheduled_horoscopes และคอลัมน์ payments.coins, payments.slip_trans_ref)
+
+### ตัวแปร env ที่เกี่ยวข้อง
+
+| ตัวแปร | ใช้ทำอะไร |
+| --- | --- |
+| `PROMPTPAY_ID` | เบอร์/เลขพร้อมเพย์ของบัญชีเราที่ใช้สร้าง QR รับเงิน |
+| `ADMIN_EMAILS` | อีเมลแอดมิน คั่นด้วยจุลภาค |
+| `CRON_SECRET` | รหัสที่ cron ใช้เรียก `/api/cron/horoscopes` (Vercel แนบให้เองเมื่อตั้งค่าไว้) |
+| `SLIP2GO_API_URL`, `SLIP2GO_SECRET` | เปิดตรวจสลิปอัตโนมัติด้วย Slip2Go (ไม่ตั้ง = แอดมินยืนยันมือ) |
+| `SLIP2GO_PROMPTPAY_TYPE` (`phone_number`/`citizen_id`/`e_wallet`), `SLIP2GO_ACCOUNT_NAME` | ให้ Slip2Go สร้าง QR จาก `PROMPTPAY_ID` ของเรา (ไม่ตั้ง/เรียกไม่สำเร็จ = สร้างเองในเครื่อง) |
+| `SLIP2GO_RECEIVER_TYPE`, `SLIP2GO_RECEIVER_ACCOUNT` | ไม่บังคับ: ตรวจว่าสลิปโอนเข้าบัญชีเราจริง |
+
+### ตารางสร้างดวงล่วงหน้า (`vercel.json`, เวลาไทย)
+
+รายวันทุกเที่ยงคืน, รายสัปดาห์เที่ยงคืนวันอาทิตย์, รายเดือนเที่ยงคืนวันที่ 1 ผลเก็บในตาราง `scheduled_horoscopes` ทุกคนอ่านค่าเดียวกัน ถ้า cron ยังไม่รัน หน้าเว็บจะสร้างให้ครั้งแรกครั้งเดียวแล้วแคชไว้

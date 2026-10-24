@@ -1,58 +1,39 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { Metadata } from "next";
-import { Card, CardContent } from "@/components/ui/card";
-import { TAROT_CARDS, type TarotCard } from "@/lib/tarot-data";
+import { TAROT_CARDS } from "@/lib/tarot-data";
+import { TarotDeck, type TarotSection } from "./tarot-deck";
 
 export const metadata: Metadata = {
   title: "ความหมายไพ่ทาโรต์เทพฮินดู 78 ใบ | ดูดวงดิ",
   description: "รวมความหมายไพ่ทาโรต์เทพฮินดูเต็มสำรับ 78 ใบ แบบเข้าใจง่าย",
 };
 
-const SECTIONS: { title: string; cards: TarotCard[] }[] = [
-  { title: "ชุดใหญ่ 22 ใบ (Major Arcana)", cards: TAROT_CARDS.slice(0, 22) },
-  { title: "สำรับเหรียญ · เงินทองและการงาน", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-coins")) },
-  { title: "สำรับตะเกียง · พลังและแรงบันดาลใจ", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-diya")) },
-  { title: "สำรับหม้อน้ำ · อารมณ์และความรัก", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-kalasha")) },
-  { title: "สำรับดาบ · ความคิดและการตัดสินใจ", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-khadga")) },
+const SECTIONS: TarotSection[] = [
+  { tab: "ชุดใหญ่ 22 ใบ", title: "ชุดใหญ่ 22 ใบ (Major Arcana)", cards: TAROT_CARDS.slice(0, 22) },
+  { tab: "เหรียญ · เงินทอง", title: "สำรับเหรียญ · เงินทองและการงาน", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-coins")) },
+  { tab: "ตะเกียง · พลัง", title: "สำรับตะเกียง · พลังและแรงบันดาลใจ", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-diya")) },
+  { tab: "หม้อน้ำ · ความรัก", title: "สำรับหม้อน้ำ · อารมณ์และความรัก", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-kalasha")) },
+  { tab: "ดาบ · ความคิด", title: "สำรับดาบ · ความคิดและการตัดสินใจ", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-khadga")) },
 ];
 
 export default function TarotIndexPage() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12">
-      <h1 className="mb-2 font-display text-3xl text-foreground">ไพ่เทพฮินดู 78 ใบ</h1>
-      <p className="mb-8 text-sm text-muted-foreground">
-        แตะไพ่ใบไหนก็ได้เพื่ออ่านความหมายเต็ม
-      </p>
-
-      <div className="flex flex-col gap-10">
-        {SECTIONS.map((section) => (
-          <section key={section.title}>
-            <h2 className="mb-4 font-display text-xl text-primary">{section.title}</h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-5">
-              {section.cards.map((card) => (
-                <Link key={card.slug} href={`/tarot/${card.slug}`}>
-                  <Card className="h-full overflow-hidden rounded-[var(--radius-card)] border-primary/20 bg-card transition-colors hover:border-primary/50">
-                    <div className="relative aspect-[7/12] w-full bg-muted">
-                      <Image
-                        src={card.imageUrl}
-                        alt={`${card.nameTh} (${card.nameEn})`}
-                        fill
-                        sizes="(max-width: 640px) 45vw, 200px"
-                        className="object-contain"
-                      />
-                    </div>
-                    <CardContent className="flex flex-col items-center gap-0.5 py-3 text-center">
-                      <p className="font-display text-sm text-foreground">{card.nameTh}</p>
-                      <p className="tarot-numeral text-xs">{card.nameEn}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          </section>
-        ))}
+    <div className="mx-auto w-full max-w-[1120px] px-[18px] pb-10 pt-2 md:px-10 md:pb-20 md:pt-8">
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+        <div className="min-w-0 flex-1 basis-[300px]">
+          <p className="text-sm text-muted-foreground">สำรับไพ่เทพฮินดู</p>
+          <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">ไพ่ 78 ใบ</h1>
+          <p className="text-sm text-muted-foreground">ความหมายเต็มสำรับ แบบเข้าใจง่าย แตะที่ไพ่เพื่ออ่าน</p>
+        </div>
+        <Link
+          href="/reading"
+          className="inline-flex min-h-[50px] items-center justify-center rounded-[14px] bg-primary px-6 font-bold text-primary-foreground no-underline"
+        >
+          เปิดไพ่เลย
+        </Link>
       </div>
+
+      <TarotDeck sections={SECTIONS} />
     </div>
   );
 }

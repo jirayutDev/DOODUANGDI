@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 // ลูกเต๋าพยากรณ์ — อิงวิธีเสี่ยงทายแบบตำราลูกเต๋าพยากรณ์ (ทอยลูกเต๋า 2 ลูกลงภาชนะ ดูแต้มที่ออก)
 // ความหมายตามผลรวมแต้มเป็นฉบับสรุปทั่วไป ไม่ใช่ตำราต้นฉบับแบบเต็ม 25 หมวดคำถาม
 export const DICE_MEANINGS: Record<number, string> = {
@@ -15,8 +16,8 @@ export const DICE_MEANINGS: Record<number, string> = {
 };
 
 export function rollDice(): { die1: number; die2: number; sum: number; meaning: string } {
-  const die1 = Math.floor(Math.random() * 6) + 1;
-  const die2 = Math.floor(Math.random() * 6) + 1;
+  const die1 = randomInt(1, 7);
+  const die2 = randomInt(1, 7);
   const sum = die1 + die2;
   return { die1, die2, sum, meaning: DICE_MEANINGS[sum] };
 }

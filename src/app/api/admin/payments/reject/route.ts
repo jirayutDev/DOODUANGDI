@@ -1,27 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { isAdminEmail } from "@/lib/admin";
+import { z } from "zod";
+import { and, eq, inArray } from "drizzle-orm";
+import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
 import { payments } from "@/db/schema";
-import { eq } from "drizzle-orm";
+
+const Body = z.object({ paymentId: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!isAdminEmail(user?.email)) {
+  const admin = await getAdminUser();
+  if (!admin) {
     return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 });
   }
 
-  const body = (await req.json()) as { paymentId?: string };
-  if (!body.paymentId) {
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid payload" }, { status: 400 });
+  }
+  const parsed = Body.safeParse(raw);
+  if (!parsed.success) {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
 
-  const db = getDb();
-  await db.update(payments).set({ status: "rejected" }).where(eq(payments.id, body.paymentId));
+  const updated = await getDb()
+    .update(payments)
+    .set({ status: "rejected" })
+    .where(and(eq(payments.id, parsed.data.paymentId), inArray(payments.status, ["pending", "awaiting_confirmation"])))
+    .returning({ id: payments.id });
+  if (updated.length === 0) {
+    return NextResponse.json({ error: "ไม่พบรายการ หรือสถานะเปลี่ยนไปแล้ว" }, { status: 409 });
+  }
 
   return NextResponse.json({ ok: true });
 }

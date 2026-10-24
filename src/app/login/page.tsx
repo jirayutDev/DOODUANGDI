@@ -6,8 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -31,36 +29,52 @@ function LoginForm() {
   const [tab, setTab] = useState<"email" | "phone">("email");
 
   return (
-    <div className="mx-auto max-w-md px-4 py-12">
-      <h1 className="mb-2 font-display text-3xl text-foreground">เข้าสู่ระบบ</h1>
-      <p className="mb-8 text-sm text-muted-foreground">
-        เข้าสู่ระบบเพื่อบันทึกดวงโปรไฟล์และสมุดดวงของคุณถาวร
-      </p>
+    <div className="mx-auto max-w-[1120px] px-[18px] pb-10 pt-4 md:px-10 md:pb-20 md:pt-8">
+      <div className="flex flex-wrap items-center gap-x-24 gap-y-10">
+        <div className="hidden min-w-0 flex-1 basis-[360px] flex-col items-center gap-3.5 text-center md:flex">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/tarot/the-star.jpg"
+            alt="ไพ่ดาวแห่งความหวัง (The Star)"
+            className="h-[390px] w-[240px] -rotate-3 rounded-xl object-cover shadow-[0_14px_28px_rgba(0,0,0,0.45)]"
+          />
+          <p className="mt-2 text-[19px] text-muted-foreground">
+            “หลังผ่านช่วงยากลำบาก ความหวังและกำลังใจกำลังกลับมา”
+          </p>
+        </div>
 
-      {authFailed && (
-        <p className="mb-4 rounded-lg bg-destructive/10 p-3 text-center text-sm text-destructive">
-          เข้าสู่ระบบไม่สำเร็จ ลองใหม่อีกครั้งนะ
-        </p>
-      )}
+        <div className="flex min-w-0 max-w-[440px] flex-1 basis-[340px] flex-col gap-3.5">
+          <p className="text-sm text-muted-foreground">ยินดีต้อนรับกลับมา</p>
+          <h1 className="text-[28px] font-bold leading-[1.45] md:text-[40px]">เข้าสู่ระบบ</h1>
+          <p className="-mt-1 text-sm text-muted-foreground">
+            เข้าสู่ระบบแล้วน้องมูจะจำดวงเธอได้ และบันทึกสมุดดวงของคุณถาวร
+          </p>
 
-      <Card className="bg-card">
-        <CardContent className="pt-6">
-          <div className="mb-4 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
-            {(["email", "phone"] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTab(t)}
-                className={cn(
-                  "rounded-md py-1.5 text-sm font-medium transition-colors",
-                  tab === t
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {t === "email" ? "อีเมล" : "เบอร์โทร"}
-              </button>
-            ))}
+          {authFailed && (
+            <p className="rounded-lg bg-destructive/10 p-3 text-center text-sm text-destructive">
+              เข้าสู่ระบบไม่สำเร็จ ลองใหม่อีกครั้งนะ
+            </p>
+          )}
+
+          <div className="mt-3.5">
+            <div role="group" className="inline-flex flex-wrap gap-1.5 rounded-[14px] bg-card p-1">
+              {(["email", "phone"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={tab === t}
+                  onClick={() => setTab(t)}
+                  className={cn(
+                    "min-h-10 rounded-[10px] px-3.5 text-sm transition-colors",
+                    tab === t
+                      ? "bg-cream font-bold text-ink"
+                      : "font-medium text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {t === "email" ? "อีเมล" : "เบอร์โทร"}
+                </button>
+              ))}
+            </div>
           </div>
 
           {tab === "email" ? (
@@ -69,21 +83,26 @@ function LoginForm() {
             <PhoneAuthForm onDone={() => router.push("/profile")} />
           )}
 
-          <div className="my-6 flex items-center gap-3">
-            <Separator className="flex-1" />
-            <span className="text-xs text-muted-foreground">หรือ</span>
-            <Separator className="flex-1" />
+          <div aria-hidden="true" className="flex items-center gap-3 text-muted-foreground">
+            <span className="h-px flex-1 bg-line-soft" />
+            หรือ
+            <span className="h-px flex-1 bg-line-soft" />
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3.5">
             <OAuthButton provider="google" label="ดำเนินการต่อด้วย Google" />
             <OAuthButton provider="custom:line" label="ดำเนินการต่อด้วย LINE" />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
+
+const fieldInput =
+  "h-[50px] rounded-xl border-0 bg-cream px-3.5 text-base text-ink placeholder:text-ink/50 md:text-base";
+const fieldLabel = "text-sm font-medium text-foreground";
+const primaryBtn = "mt-2 h-auto min-h-[50px] w-full rounded-[14px] text-base font-bold";
 
 function EmailAuthForm({ onDone }: { onDone: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -139,10 +158,11 @@ function EmailAuthForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4">
+    <form onSubmit={handleSubmit} className="grid gap-3.5">
       <div className="grid gap-2">
-        <Label htmlFor="email">อีเมล</Label>
+        <Label htmlFor="email" className={fieldLabel}>อีเมล</Label>
         <Input
+          className={fieldInput}
           id="email"
           type="email"
           value={email}
@@ -151,8 +171,9 @@ function EmailAuthForm({ onDone }: { onDone: () => void }) {
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="password">รหัสผ่าน</Label>
+        <Label htmlFor="password" className={fieldLabel}>รหัสผ่าน</Label>
         <Input
+          className={fieldInput}
           id="password"
           type="password"
           value={password}
@@ -161,24 +182,24 @@ function EmailAuthForm({ onDone }: { onDone: () => void }) {
           required
         />
       </div>
-      <Button type="submit" disabled={loading}>
+      <Button type="submit" disabled={loading} className={primaryBtn}>
         {mode === "signup" ? "สมัครสมาชิก" : "เข้าสู่ระบบ"}
       </Button>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex flex-col items-center gap-2 text-[15px]">
         <button
           type="button"
-          className="underline underline-offset-2"
+          className="text-primary hover:text-cream"
           onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
         >
           {mode === "signup" ? "มีบัญชีแล้ว เข้าสู่ระบบ" : "ยังไม่มีบัญชี สมัครสมาชิก"}
         </button>
         <button
           type="button"
-          className="underline underline-offset-2"
+          className="text-primary hover:text-cream"
           onClick={handleMagicLink}
           disabled={loading}
         >
-          ส่ง Magic Link แทน
+          ขอลิงก์เข้าสู่ระบบทางอีเมลแทน
         </button>
       </div>
     </form>
@@ -225,10 +246,11 @@ function PhoneAuthForm({ onDone }: { onDone: () => void }) {
 
   if (otpSent) {
     return (
-      <form onSubmit={handleVerifyOtp} className="grid gap-4">
+      <form onSubmit={handleVerifyOtp} className="grid gap-3.5">
         <div className="grid gap-2">
-          <Label htmlFor="otp">รหัส OTP ที่ได้รับทาง SMS</Label>
+          <Label htmlFor="otp" className={fieldLabel}>รหัส OTP ที่ได้รับทาง SMS</Label>
           <Input
+          className={fieldInput}
             id="otp"
             inputMode="numeric"
             value={otp}
@@ -236,12 +258,12 @@ function PhoneAuthForm({ onDone }: { onDone: () => void }) {
             required
           />
         </div>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading} className={primaryBtn}>
           ยืนยันรหัส
         </Button>
         <button
           type="button"
-          className="text-xs text-muted-foreground underline underline-offset-2"
+          className="text-[15px] text-primary hover:text-cream"
           onClick={() => setOtpSent(false)}
         >
           เปลี่ยนเบอร์โทร
@@ -251,10 +273,11 @@ function PhoneAuthForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <form onSubmit={handleSendOtp} className="grid gap-4">
+    <form onSubmit={handleSendOtp} className="grid gap-3.5">
       <div className="grid gap-2">
-        <Label htmlFor="phone">เบอร์โทร (รูปแบบสากล เช่น +66812345678)</Label>
+        <Label htmlFor="phone" className={fieldLabel}>เบอร์โทร (รูปแบบสากล เช่น +66812345678)</Label>
         <Input
+          className={fieldInput}
           id="phone"
           type="tel"
           placeholder="+66812345678"
@@ -263,7 +286,7 @@ function PhoneAuthForm({ onDone }: { onDone: () => void }) {
           required
         />
       </div>
-      <Button type="submit" disabled={loading}>
+      <Button type="submit" disabled={loading} className={primaryBtn}>
         ส่งรหัส OTP
       </Button>
     </form>
@@ -288,7 +311,12 @@ function OAuthButton({ provider, label }: { provider: LoginProvider; label: stri
   }
 
   return (
-    <Button type="button" variant="outline" onClick={handleClick}>
+    <Button
+      type="button"
+      variant="outline"
+      onClick={handleClick}
+      className="h-auto min-h-[50px] rounded border-[#4A4080] bg-transparent text-base text-foreground hover:bg-card"
+    >
       {label}
     </Button>
   );
