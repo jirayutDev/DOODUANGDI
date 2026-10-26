@@ -82,7 +82,7 @@ export function PersonalityPicker({
   return (
     <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">บุคลิกและนิสัย</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
         {config.title}
       </h1>
       <p className="mt-2.5 max-w-[560px] text-soft-text">{config.subtitle}</p>
@@ -126,7 +126,7 @@ export function PersonalityPicker({
                   onClick={() => pick(key)}
                   disabled={paying}
                   className={cn(
-                    "min-h-[46px] rounded border text-[15px] transition-colors",
+                    "min-h-[46px] rounded border text-[16px] transition-colors",
                     on
                       ? "border-primary bg-primary font-semibold text-primary-foreground"
                       : "border-line-soft bg-transparent text-foreground hover:border-primary"
@@ -139,7 +139,7 @@ export function PersonalityPicker({
             })}
           </div>
           <p className="text-xs text-muted-foreground">
-            เปิดดูแต่ละรายการใช้ {featureCostLabel("personality")} (เปิดซ้ำไม่คิดเพิ่ม) · ต้องเข้าสู่ระบบและเป็นสมาชิก
+            เปิดดูแต่ละรายการใช้ {featureCostLabel("personality")} (เปิดซ้ำไม่คิดเพิ่ม) · ต้องเข้าสู่ระบบ
           </p>
         </div>
 
@@ -147,8 +147,8 @@ export function PersonalityPicker({
           {selected ? (
             <>
               <p className="text-sm text-muted-foreground">คน{config.labelPrefix || "ปี"}</p>
-              <p className="-mt-1.5 text-[64px] font-bold leading-[1.55] text-primary">{selected}</p>
-              <blockquote className="rounded-[14px] bg-card px-4 py-3 text-lg leading-[1.8]">
+              <p className="-mt-1.5 text-[64px] font-bold leading-[1.9] text-primary">{selected}</p>
+              <blockquote className="rounded-[14px] bg-card px-4 py-3 text-lg leading-[1.9]">
                 {texts[`${categoryKey}:${selected}`]}
               </blockquote>
               <div className="mt-2 flex flex-wrap gap-3.5">

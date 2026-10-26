@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { loginHref } from "@/lib/safe-next";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SlipUpload } from "@/components/slip-upload";
-import { COIN_PACKAGES, FEATURE_COSTS } from "@/lib/coin-config";
+import { CoinIcon } from "@/components/coin-icon";
+import { COIN_PACKAGES, FEATURE_COSTS, describeTransaction } from "@/lib/coin-config";
 
 interface BalanceInfo {
   loggedIn: boolean;
   balance: number;
-  member: boolean;
 }
 
 interface Checkout {
@@ -28,19 +30,6 @@ interface HistoryItem {
   kind: string;
   ref: string | null;
   createdAt: string;
-}
-
-const KIND_LABEL: Record<string, string> = {
-  topup: "เติม coin",
-  code: "แลกโค้ด",
-  bonus: "โบนัสสมาชิก",
-  spend: "ใช้บริการ",
-  refund: "คืน coin",
-};
-
-function describe(item: HistoryItem) {
-  const feature = item.ref && item.ref in FEATURE_COSTS ? FEATURE_COSTS[item.ref as keyof typeof FEATURE_COSTS].label : null;
-  return feature ?? KIND_LABEL[item.kind] ?? item.kind;
 }
 
 export default function CoinsPage() {
@@ -112,24 +101,20 @@ export default function CoinsPage() {
   return (
     <div className="mx-auto max-w-[1120px] px-[18px] pb-10 pt-2 md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">กระเป๋า coin</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">เติม coin ใช้บริการ</h1>
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">เติม coin ใช้บริการ</h1>
 
       <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[18px] bg-card p-5">
-        <div>
-          <p className="text-sm text-muted-foreground">coin ของคุณ</p>
-          <p className="text-[44px] font-bold leading-none text-primary">{info ? info.balance : "–"}</p>
+        <div className="flex items-center gap-4">
+          <CoinIcon count={1} className="h-16 w-16 shrink-0 drop-shadow-[0_4px_8px_rgba(0,0,0,0.35)]" />
+          <div>
+            <p className="text-sm text-muted-foreground">coin ของคุณ</p>
+            <p className="text-[44px] font-bold leading-none text-primary">{info ? info.balance : "–"}</p>
+          </div>
         </div>
         {loggedOut ? (
           <Button asChild className="h-auto min-h-[46px] rounded-[14px] px-6 font-bold">
-            <Link href="/login">เข้าสู่ระบบเพื่อเติม coin</Link>
+            <Link href={loginHref("/coins")}>เข้าสู่ระบบเพื่อเติม coin</Link>
           </Button>
-        ) : info && !info.member ? (
-          <div className="text-sm text-soft-text">
-            ยังไม่ได้เป็นสมาชิก ต้องสมัครสมาชิกก่อนถึงจะใช้ coin ได้{" "}
-            <Link href="/membership" className="font-semibold text-primary">
-              สมัครสมาชิก ›
-            </Link>
-          </div>
         ) : null}
       </section>
 
@@ -139,7 +124,7 @@ export default function CoinsPage() {
             <Image src={checkout.qrDataUrl} alt="PromptPay QR" fill className="object-contain" />
           </div>
           <div className="flex min-w-0 flex-1 basis-[260px] flex-col gap-3.5">
-            <h2 className="text-[26px] font-bold leading-[1.5]">
+            <h2 className="text-[26px] font-bold leading-[1.9]">
               เติม {checkout.coins} coin — {checkout.amount} บาท
             </h2>
             <p className="text-soft-text">
@@ -164,25 +149,52 @@ export default function CoinsPage() {
       ) : (
         <section className="mt-9">
           <h2 className="text-xl font-bold">เลือกแพ็กเกจ</h2>
-          <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
-            {COIN_PACKAGES.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                disabled={!!loggedOut || loadingPack === p.id}
-                onClick={() => handleBuy(p.id)}
-                className="relative flex min-h-[132px] flex-col items-start justify-between rounded-[14px] border border-line-soft bg-card p-4 text-left transition-colors hover:border-primary disabled:opacity-60"
-              >
-                {p.badge && (
-                  <span className="absolute -top-2.5 right-3 rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
-                    {p.badge}
+          <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-5 md:gap-x-4">
+            {COIN_PACKAGES.map((p, i) => {
+              const best = !!p.badge;
+              const busy = loadingPack === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={!!loggedOut || busy}
+                  onClick={() => handleBuy(p.id)}
+                  className={cn(
+                    "group relative flex flex-col items-center rounded-[22px] border bg-card px-3 pb-4 pt-6 text-center transition-all hover:-translate-y-1 hover:border-primary disabled:opacity-85 disabled:hover:translate-y-0",
+                    best
+                      ? "border-2 border-transparent shadow-[0_12px_32px_rgba(232,184,74,0.28)] [background:linear-gradient(160deg,#54419a_0%,#31275f_50%,#1f1a40_100%)_padding-box,linear-gradient(135deg,#fff1b8_0%,#e8b84a_45%,#8a5a10_100%)_border-box]"
+                      : "border-line-soft bg-gradient-to-b from-[#2d2457] to-[#1d1840]",
+                    i === COIN_PACKAGES.length - 1 && "col-span-2 md:col-span-1"
+                  )}
+                >
+                  {p.badge && (
+                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-[#fff1b8] via-[#f2c14e] to-[#c98f26] px-3.5 py-0.5 text-xs font-bold text-ink shadow-md">
+                      {p.badge}
+                    </span>
+                  )}
+                  <CoinIcon
+                    count={p.coins < 50 ? 1 : p.coins < 100 ? 2 : p.coins < 200 ? 3 : p.coins < 500 ? 5 : 7}
+                    className="h-[92px] w-full drop-shadow-[0_6px_10px_rgba(0,0,0,0.35)] transition-transform group-hover:scale-105"
+                  />
+                  <span className="mt-3 flex items-baseline gap-1.5">
+                    <span className="bg-gradient-to-b from-[#fff3c4] via-[#f5c542] to-[#d38f1c] bg-clip-text text-[38px] font-bold leading-none text-transparent">
+                      {p.coins}
+                    </span>
+                    <span className="text-sm text-muted-foreground">coin</span>
                   </span>
-                )}
-                <span className="text-3xl font-bold leading-none text-primary">{p.coins}</span>
-                <span className="text-xs text-muted-foreground">coin</span>
-                <span className="font-semibold">{loadingPack === p.id ? "กำลังสร้าง QR..." : `${p.priceBaht} บาท`}</span>
-              </button>
-            ))}
+                  <span
+                    className={cn(
+                      "mt-3.5 w-full rounded-full px-3 py-1.5 text-base font-bold",
+                      best
+                        ? "bg-gradient-to-r from-[#fff1b8] via-[#f2c14e] to-[#c98f26] text-ink shadow-[0_4px_14px_rgba(232,184,74,0.4)]"
+                        : "bg-gradient-to-r from-[#40347a] to-[#2e2662] text-foreground group-hover:from-[#fff1b8] group-hover:via-[#f2c14e] group-hover:to-[#c98f26] group-hover:text-ink"
+                    )}
+                  >
+                    {busy ? "กำลังสร้าง QR..." : `${p.priceBaht} บาท`}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
@@ -231,7 +243,7 @@ export default function CoinsPage() {
             {history.map((h) => (
               <li key={h.id} className="flex items-center justify-between border-b border-border py-2.5 text-sm">
                 <span>
-                  {describe(h)}
+                  {describeTransaction(h)}
                   <span className="ml-2 text-xs text-muted-foreground">
                     {new Date(h.createdAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}
                   </span>

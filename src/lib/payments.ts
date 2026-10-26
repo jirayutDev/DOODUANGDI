@@ -1,10 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
-import { memberships, payments } from "@/db/schema";
+import { payments } from "@/db/schema";
 import { grantCoins } from "@/lib/coins";
-import { MEMBERSHIP_BONUS_COINS } from "@/lib/coin-config";
-
-export const MEMBERSHIP_DURATION_DAYS = 30;
 
 export type FulfillResult = "ok" | "already_confirmed" | "rejected" | "not_found" | "slip_used";
 
@@ -34,32 +31,9 @@ export async function fulfillPayment(paymentId: string, slipTransRef?: string): 
         return cur?.status === "rejected" ? "rejected" : "already_confirmed";
       }
 
-      if (payment.purpose === "coin_topup") {
-        await grantCoins(payment.userId, payment.coins ?? 0, "topup", payment.id, tx);
-        return "ok";
-      }
-
-      const [existing] = await tx
-        .select()
-        .from(memberships)
-        .where(eq(memberships.userId, payment.userId))
-        .for("update")
-        .limit(1);
-      const active = !!existing && existing.expiresAt > now;
-      const base = active ? existing.expiresAt : now;
-      const expiresAt = new Date(base.getTime() + MEMBERSHIP_DURATION_DAYS * 24 * 60 * 60 * 1000);
-      // ไม่ลดระดับแพ็กเกจที่ active อยู่ (mu_club สูงกว่า ai_plus)
-      const plan = active && existing.plan === "mu_club" ? "mu_club" : payment.purpose;
-      await tx
-        .insert(memberships)
-        .values({ userId: payment.userId, plan, expiresAt, lastPaymentId: payment.id })
-        .onConflictDoUpdate({
-          target: memberships.userId,
-          set: { plan, expiresAt, lastPaymentId: payment.id, updatedAt: now },
-        });
-
-      const bonus = MEMBERSHIP_BONUS_COINS[payment.purpose] ?? 0;
-      if (bonus > 0) await grantCoins(payment.userId, bonus, "bonus", payment.id, tx);
+      // โมเดลปัจจุบันมีแค่เติม coin; รายการสมาชิกเก่า (ai_plus/mu_club) ที่ค้างอยู่ไม่เติมสิทธิ์อะไรแล้ว
+      if (payment.purpose !== "coin_topup") return "ok";
+      await grantCoins(payment.userId, payment.coins ?? 0, "topup", payment.id, tx);
       return "ok";
     });
   } catch (e) {

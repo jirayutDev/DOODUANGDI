@@ -157,7 +157,7 @@ export default function LoveMatchPage() {
   return (
     <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">จับคู่ความรัก</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
         เราสองคนเข้ากันไหม
       </h1>
       <p className="mt-2.5 max-w-[560px] text-soft-text">
@@ -183,7 +183,7 @@ export default function LoveMatchPage() {
             {loading ? "น้องมูกำลังทำนาย..." : "ดูว่าเข้ากันไหม"}
           </button>
           <p className="text-center text-sm text-muted-foreground">
-            ใช้ {featureCostLabel("love-match")} · ต้องเข้าสู่ระบบและเป็นสมาชิก
+            ใช้ {featureCostLabel("love-match")} · ต้องเข้าสู่ระบบ
           </p>
         </div>
 
@@ -196,7 +196,7 @@ export default function LoveMatchPage() {
                   {you.name.trim()} กับ {partner.name.trim()}
                 </p>
                 <p className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold leading-[1.2]">{result.score}%</span>
+                  <span className="text-5xl font-bold leading-[1.9]">{result.score}%</span>
                   <span>ความเข้ากันได้</span>
                 </p>
                 <div aria-hidden className="h-2 rounded-full bg-[#E2D8C4]">
@@ -205,7 +205,7 @@ export default function LoveMatchPage() {
                     style={{ width: `${Math.min(100, Math.max(0, result.score))}%` }}
                   />
                 </div>
-                <p className="mt-1.5 leading-[1.7]">{result.summary}</p>
+                <p className="mt-1.5 leading-[1.9]">{result.summary}</p>
               </div>
 
               <div className="rounded-[18px] bg-card p-5">
@@ -256,13 +256,13 @@ export default function LoveMatchPage() {
               <div className="flex flex-col gap-2.5 rounded-[18px] bg-cream p-5 text-ink">
                 <p className="text-sm text-[#5A4F80]">มายด์ กับ ต้น</p>
                 <p className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold leading-[1.2]">72%</span>
+                  <span className="text-5xl font-bold leading-[1.9]">72%</span>
                   <span>เข้ากันดี</span>
                 </p>
                 <div aria-hidden className="h-2 rounded-full bg-[#E2D8C4]">
                   <div className="h-2 w-[72%] rounded-full bg-ink" />
                 </div>
-                <p className="mt-1.5 leading-[1.7]">
+                <p className="mt-1.5 leading-[1.9]">
                   คำทำนายจากน้องมู เรื่องนิสัยที่เข้ากัน และสิ่งที่ควรระวัง
                 </p>
               </div>

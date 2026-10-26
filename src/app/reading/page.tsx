@@ -136,7 +136,7 @@ export default function ReadingPage() {
         <div className="md:grid md:grid-cols-[1fr_1.1fr] md:items-start md:gap-14">
           <div>
             <p className="text-sm text-muted-foreground">ขั้นที่ 1 จาก 2</p>
-            <h1 className="mt-0.5 text-[26px] font-bold leading-[1.45] md:text-[34px]">วันนี้อยากถามอะไร</h1>
+            <h1 className="mt-0.5 text-[26px] font-bold leading-[1.9] md:text-[34px]">วันนี้อยากถามอะไร</h1>
             <label htmlFor="question" className="mt-3.5 block">
               <span className="mb-1.5 block text-sm text-muted-foreground">คำถาม (ไม่ใส่ก็ได้)</span>
               <textarea
@@ -156,7 +156,7 @@ export default function ReadingPage() {
                   type="button"
                   disabled={shuffling}
                   onClick={() => setQuestion((q) => (q.trim() ? `${q.trim()} ${a}` : a))}
-                  className="min-h-[34px] cursor-pointer rounded-full border border-line-soft px-3 text-[13px] text-soft-text"
+                  className="min-h-[34px] cursor-pointer rounded-full border border-line-soft px-3 text-[16px] text-soft-text"
                 >
                   {a}
                 </button>
@@ -185,9 +185,9 @@ export default function ReadingPage() {
                     <SpreadMini layout={s.layout} />
                     <span className="flex flex-1 flex-col leading-normal">
                       <span className="font-bold text-foreground">{s.name}</span>
-                      <span className="text-[13px] text-muted-foreground">{s.description}</span>
+                      <span className="text-[16px] text-muted-foreground">{s.description}</span>
                     </span>
-                    <span className="shrink-0 whitespace-nowrap text-[13px] text-muted-foreground">
+                    <span className="shrink-0 whitespace-nowrap text-[16px] text-muted-foreground">
                       {s.positions.length} ใบ
                     </span>
                   </button>
@@ -202,7 +202,7 @@ export default function ReadingPage() {
             >
               {shuffling ? "กำลังสับไพ่..." : `สับไพ่ ${needed} ใบ`}
             </button>
-            <p className="mt-2 text-center text-[13px] text-muted-foreground">
+            <p className="mt-2 text-center text-[16px] text-muted-foreground">
               เปิดไพ่ได้ฟรี · ให้น้องมูสรุปผลใช้ {FEATURE_COSTS["reading-summary"].cost} coin
             </p>
           </div>
@@ -218,10 +218,10 @@ export default function ReadingPage() {
       {phase === "picking" && (
         <>
           <p className="text-sm text-muted-foreground">ขั้นที่ 2 จาก 2 · {spread.name}</p>
-          <h1 className="mt-0.5 text-[26px] font-bold leading-[1.45] md:text-[34px]">เลือกไพ่ทีละใบ</h1>
+          <h1 className="mt-0.5 text-[26px] font-bold leading-[1.9] md:text-[34px]">เลือกไพ่ทีละใบ</h1>
           <div className="mt-3 flex items-center justify-between gap-3 rounded-[14px] bg-secondary px-4 py-3">
             <span className="flex flex-col leading-normal">
-              <span className="text-[13px] text-muted-foreground">ใบถัดไป</span>
+              <span className="text-[16px] text-muted-foreground">ใบถัดไป</span>
               <span className="font-semibold">{nextPos || "เลือกครบแล้ว"}</span>
             </span>
             <span className="shrink-0 rounded-full bg-cream px-3 py-1 font-bold text-ink">
@@ -253,11 +253,11 @@ export default function ReadingPage() {
       {phase === "done" && result.length === needed && (
         <>
           <p className="text-sm text-muted-foreground">{spread.name}</p>
-          <h1 className="mb-5 mt-0.5 text-[26px] font-bold leading-[1.45] md:text-[34px]">ไพ่ของเธอ</h1>
+          <h1 className="mb-5 mt-0.5 text-[26px] font-bold leading-[1.9] md:text-[34px]">ไพ่ของเธอ</h1>
           <SpreadResult spread={spread} drawn={result} />
           <SummarySection loading={summaryLoading} summary={summary} />
-          <p className="mt-3 text-center text-[13px] text-muted-foreground">
-            น้องมูสรุปผลเปิดไพ่ ใช้ {FEATURE_COSTS["reading-summary"].cost} coin · ต้องเข้าสู่ระบบและเป็นสมาชิก
+          <p className="mt-3 text-center text-[16px] text-muted-foreground">
+            น้องมูสรุปผลเปิดไพ่ ใช้ {FEATURE_COSTS["reading-summary"].cost} coin · ต้องเข้าสู่ระบบ
           </p>
           <SpreadDetailList spread={spread} drawn={result} />
           <div className="mt-[18px] flex flex-wrap justify-center gap-2.5">
@@ -563,7 +563,7 @@ function CardSlot({
     <div className="animate-deal-in" style={{ animationDelay: `${dealIndex * 150}ms` }}>
       <Card className={cn("bg-card", compact ? "w-24" : "w-40 sm:w-56")}>
         <CardContent className="flex flex-col items-center gap-2 p-3 text-center">
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-xs">
             ใบที่ {index}
           </Badge>
           {!compact && (
@@ -572,7 +572,7 @@ function CardSlot({
           {flipImage}
           <div className="flex h-10 flex-col items-center justify-center">
             <p className="line-clamp-1 font-display text-sm text-foreground">{card.nameTh}</p>
-            <p className={cn("text-[10px] text-destructive", !reversed && "invisible")}>กลับหัว</p>
+            <p className={cn("text-xs text-destructive", !reversed && "invisible")}>กลับหัว</p>
           </div>
         </CardContent>
       </Card>
@@ -585,11 +585,11 @@ function SummarySection({ loading, summary }: { loading: boolean; summary: strin
 
   return (
     <div className="mx-auto mt-[26px] max-w-[760px] rounded-[18px] bg-cream px-[18px] py-4 text-ink">
-      <p className="text-[13px] font-bold text-[#5A4F80]">น้องมูอ่านไพ่ให้</p>
+      <p className="text-[16px] font-bold text-[#5A4F80]">น้องมูอ่านไพ่ให้</p>
       {loading ? (
         <p className="mt-1.5 text-base">กำลังแปลผลไพ่ทั้งชุด...</p>
       ) : (
-        <p className="mt-1.5 whitespace-pre-line text-base leading-[1.75]">{summary}</p>
+        <p className="mt-1.5 whitespace-pre-line text-base leading-[1.9]">{summary}</p>
       )}
     </div>
   );

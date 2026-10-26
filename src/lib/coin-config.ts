@@ -1,6 +1,5 @@
 // ราคา coin ต่อบริการ และแพ็กเกจเติม coin — แก้ราคาที่ไฟล์นี้ไฟล์เดียว
 // ฟรีไม่ต้องล็อกอิน: ดวงรายวัน (/daily-horoscope), ดวงรายสัปดาห์ (weekly), ดวงรายเดือน (monthly)
-export const FREE_TOPIC_SLUGS = ["weekly", "monthly"] as const;
 
 export const FEATURE_COSTS = {
   chat: { label: "ถามน้องมู 1 ข้อ", cost: 3 },
@@ -39,5 +38,21 @@ export function getCoinPackage(id: string): CoinPackage | undefined {
   return COIN_PACKAGES.find((p) => p.id === id);
 }
 
-// โบนัส coin เมื่อแอดมินยืนยันชำระแพ็กเกจสมาชิก (ตรงกับ perk "Coin โบนัสสมทบทุกเดือน" ของ Mu Club)
-export const MEMBERSHIP_BONUS_COINS: Record<string, number> = { ai_plus: 0, mu_club: 50 };
+// coin ต้อนรับผู้ใช้ใหม่ (ให้ครั้งเดียวต่อบัญชี)
+export const WELCOME_COINS = 10;
+
+export const KIND_LABEL: Record<string, string> = {
+  topup: "เติม coin",
+  code: "แลกโค้ด",
+  bonus: "โบนัส",
+  spend: "ใช้บริการ",
+  refund: "คืน coin",
+};
+
+// ข้อความของแต่ละรายการใน ledger: spend = ชื่อฟีเจอร์, refund = "คืน coin: ชื่อฟีเจอร์"
+export function describeTransaction(item: { kind: string; ref: string | null }): string {
+  const feature = item.ref && isFeatureKey(item.ref) ? FEATURE_COSTS[item.ref].label : null;
+  if (item.kind === "refund") return feature ? `คืน coin: ${feature}` : KIND_LABEL.refund;
+  if (item.kind === "bonus" && item.ref === "welcome") return "coin ต้อนรับ";
+  return feature ?? KIND_LABEL[item.kind] ?? item.kind;
+}

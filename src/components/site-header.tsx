@@ -5,6 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { avatarInitial } from "@/lib/auth-user";
+import { loginHref } from "@/lib/safe-next";
+import type { User } from "@supabase/supabase-js";
 
 const NAV_ITEMS = [
   { href: "/", label: "หน้าแรก" },
@@ -13,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/chat", label: "น้องมู" },
   { href: "/duang", label: "ทุกศาสตร์" },
   { href: "/mor-du", label: "หมอดู" },
+  { href: "/mu-book", label: "สมุดดวง" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -23,21 +27,23 @@ function isActive(pathname: string, href: string) {
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const [email, setEmail] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [coins, setCoins] = useState<number | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setEmail(session?.user?.email ?? null);
+      setUser(session?.user ?? null);
     });
     return () => subscription.subscription.unsubscribe();
   }, []);
 
+  const signedIn = !!user;
+
   // ยอด coin บนเมนู: โหลดเมื่อล็อกอิน และรีโหลดเมื่อหน้าอื่นยิง event "coins:changed"
   useEffect(() => {
-    if (!email) return;
+    if (!signedIn) return;
     let cancelled = false;
     const load = () =>
       fetch("/api/coins/balance")
@@ -52,7 +58,7 @@ export function SiteHeader() {
       cancelled = true;
       window.removeEventListener("coins:changed", load);
     };
-  }, [email]);
+  }, [signedIn]);
 
   async function handleSignOut() {
     try {
@@ -66,7 +72,7 @@ export function SiteHeader() {
     router.refresh();
   }
 
-  const pill = "inline-flex min-h-[38px] items-center rounded-full px-3 text-[15px] transition-colors";
+  const pill = "inline-flex min-h-[38px] items-center rounded-full px-3 text-[16px] transition-colors";
 
   return (
     <header className="bg-background">
@@ -91,8 +97,8 @@ export function SiteHeader() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 text-[15px]">
-          {email && (
+        <div className="ml-auto flex items-center gap-2 text-[16px]">
+          {signedIn && (
             <Link
               href="/coins"
               aria-label="กระเป๋า coin"
@@ -105,27 +111,23 @@ export function SiteHeader() {
               {coins ?? "–"}
             </Link>
           )}
-          <Link
-            href="/membership"
-            aria-current={pathname.startsWith("/membership") ? "page" : undefined}
-            className={cn(
-              pill,
-              "hidden md:inline-flex",
-              pathname.startsWith("/membership") ? "bg-cream font-semibold text-ink" : "text-soft-text hover:text-foreground"
-            )}
-          >
-            สมาชิก
-          </Link>
-          {email ? (
+          {user ? (
             <>
               <Link
                 href="/me"
                 className="inline-flex min-h-10 items-center gap-2 rounded-full bg-secondary px-3.5 text-sm md:hidden"
               >
                 <span className="inline-flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-ink">
-                  {email[0]?.toUpperCase()}
+                  {avatarInitial(user)}
                 </span>
                 ดวงของฉัน
+              </Link>
+              <Link
+                href="/profile"
+                aria-current={pathname.startsWith("/profile") ? "page" : undefined}
+                className="hidden min-h-10 items-center rounded-full bg-secondary px-[18px] text-foreground md:inline-flex"
+              >
+                โปรไฟล์
               </Link>
               <button
                 type="button"
@@ -136,7 +138,7 @@ export function SiteHeader() {
               </button>
             </>
           ) : (
-            <Link href="/login" className="inline-flex min-h-10 items-center rounded-full bg-secondary px-[18px] text-sm text-foreground md:text-[15px]">
+            <Link href={pathname.startsWith("/login") || pathname.startsWith("/auth") ? "/login" : loginHref(pathname)} className="inline-flex min-h-10 items-center rounded-full bg-secondary px-[18px] text-sm text-foreground md:text-[16px]">
               เข้าสู่ระบบ
             </Link>
           )}

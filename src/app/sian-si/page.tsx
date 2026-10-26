@@ -40,7 +40,7 @@ export default function SianSiPage() {
   return (
     <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">เสี่ยงทาย</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">เซียมซี</h1>
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">เซียมซี</h1>
       <p className="mt-2.5 max-w-[560px] text-soft-text">ตั้งจิตอธิษฐาน แล้วเขย่ากระบอกขอเซียมซี</p>
       <p className="mt-2 max-w-[560px] text-xs text-muted-foreground/70">
         ใช้โครงสร้าง 28 เบอร์ตามธรรมเนียมเซียมซี (4 ทิศ × 7 ดาวบริวาร) กลอนแต่ละเบอร์ประพันธ์ขึ้นเอง
@@ -82,7 +82,7 @@ export default function SianSiPage() {
             {shaking ? "กำลังเขย่า..." : done ? "เขย่าใหม่อีกครั้ง" : "เขย่าเซียมซี"}
           </button>
           <p className="text-center text-xs text-muted-foreground">
-            ใช้ {featureCostLabel("sian-si")} · ต้องเข้าสู่ระบบและเป็นสมาชิก
+            ใช้ {featureCostLabel("sian-si")} · ต้องเข้าสู่ระบบ
           </p>
         </div>
 

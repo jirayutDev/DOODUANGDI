@@ -29,6 +29,11 @@ function untrusted(text: string): string {
   return `<<<USER_TEXT\n${clean}\nUSER_TEXT>>>`;
 }
 
+// ตัวคั่น USER_TEXT เป็นของภายในระบบ ถ้าโมเดลเลียนแบบแล้วพิมพ์ออกมาในคำตอบ ให้ตัดทิ้งก่อนถึงผู้ใช้
+export function stripFences(text: string): string {
+  return text.replace(/<<<\s*USER_TEXT|USER_TEXT\s*>>>/g, "").trim();
+}
+
 // ตรวจ YYYY-MM-DD (ไม่เกินวันนี้ และ >= 1900) แล้วคำนวณโปรไฟล์ฝั่ง server — ไม่เชื่อค่าที่ client ส่งมา
 export function isValidBirthDate(v: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
@@ -110,7 +115,7 @@ async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: num
   if (CJK_PATTERN.test(text)) {
     throw new Error(`Response contains non-Thai CJK characters (${model})`);
   }
-  return text.trim();
+  return stripFences(text);
 }
 
 // ไล่ตาม OPENROUTER_MODEL ก่อน แล้วค่อยลอง OPENROUTER_FALLBACK_MODELS ทีละตัวถ้าตัวหลักพังหรือโดน rate limit
@@ -146,14 +151,18 @@ function profileLine(profile: MuAiInput["profile"]): string {
 export async function generateMuReply(input: MuAiInput): Promise<string | null> {
   const system = [
     BASE_SYSTEM_PROMPT,
-    "ตอบสั้นกระชับ 2-4 ประโยค",
+    "สไตล์การตอบ: สรุปให้เลย ฟันธงชัดเจน ไม่อ้อมค้อม ไม่ตอบกำกวม",
+    "ถ้าผู้ใช้ถามคำถามแบบ ได้/ไม่ได้ ใช่/ไม่ใช่ ควร/ไม่ควร ให้ขึ้นต้นด้วยคำตอบสั้นๆ ตรงๆ ในประโยคแรก เช่น 'ได้ค่ะ' 'ไม่ได้ค่ะ' 'ยังไม่ใช่ช่วงนี้ค่ะ' เลือกมาหนึ่งคำตอบ ห้ามตอบว่า 'ขึ้นอยู่กับคุณ' แล้วจบ",
+    "จากนั้นอธิบายเหตุผลสั้นๆ 1-2 ประโยคโดยอ้างอิงไพ่ที่เปิดได้ ผสมกับดวงวันเกิดของผู้ถามถ้ามีข้อมูล แล้วปิดด้วยสิ่งที่ควรทำต่อ 1 ข้อที่ทำได้จริง",
+    "ถ้าไพ่ใบนี้ไม่ตรงกับคำถามชัดเจน ให้เลือกตีความที่ใกล้ที่สุดแล้วฟันธงตามนั้น ไม่ต้องบอกว่าไพ่ใบเดียวให้ภาพไม่ครบ",
+    "ยังคงน้ำเสียงอบอุ่น ตอบโดยรวมไม่เกิน 4 ประโยค",
     profileLine(input.profile),
     "จบด้วยการชวนคุยต่อ หรือแนะนำว่าถ้าอยากได้คำตอบลึกกว่านี้ให้ปรึกษาหมอดูตัวจริงในระบบ",
   ].join("\n");
 
   return chatViaOpenRouter([
     { role: "system", content: system },
-    ...input.history.slice(-6).map((h) => ({ role: h.role, content: untrusted(h.content) })),
+    ...input.history.slice(-6).map((h) => ({ role: h.role, content: h.role === "user" ? untrusted(h.content) : stripFences(h.content) })),
     {
       role: "user",
       content: `วันนี้เปิดไพ่ "${input.card.nameTh} (${input.card.nameEn})" ความหมาย: ${input.card.uprightMeaning}\n\nคำถาม: ${untrusted(input.message)}`,
@@ -220,6 +229,7 @@ export interface ZodiacHoroscopeInput {
 }
 
 export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Promise<string | null> {
+  const perLine = input.sentences.startsWith("3") ? "1-2" : "2";
   const system = [
     BASE_SYSTEM_PROMPT,
     `งานตอนนี้: ทำนายดวงราศี${input.sign} สำหรับ${input.periodName} (${input.periodLabel}) เป็นคำทำนายกลางที่ทุกคนราศีนี้อ่านเหมือนกัน`,
@@ -230,7 +240,16 @@ export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Prom
           `ให้ตีความจากข้อมูลดาวข้างต้นโดยโยงกับราศี${input.sign} (เช่น ดาวที่เข้าหรือผ่านราศีนี้ ดาวที่เดินถอยหลัง ข้างขึ้นข้างแรม) ห้ามแต่งตำแหน่งดาวที่ไม่อยู่ในข้อมูล และห้ามอ้างวันที่หรือมุมดาวที่ไม่มีให้`,
         ]
       : []),
-    `ตอบ ${input.sentences} ประโยค ครอบคลุมภาพรวม ความรัก การงาน การเงิน แบบสั้นๆ จบประโยคให้สมบูรณ์`,
+    "รูปแบบคำตอบ: ตอบเป็น 5 บรรทัดตามนี้เท่านั้น แต่ละบรรทัดขึ้นต้นด้วยป้ายกำกับตามด้วยเครื่องหมาย : แล้วต่อด้วยเนื้อหา",
+    "ภาพรวม: ...",
+    "ความรัก: ...",
+    "การงาน: ...",
+    "การเงิน: ...",
+    "ข้อแนะนำ: ... (สิ่งที่ควรทำ 1 อย่างที่ทำได้จริงในช่วงนี้)",
+    `ภาพรวมเขียน ${perLine === "1-2" ? "2" : "2-3"} ประโยค ส่วนหัวข้ออื่นเขียนหัวข้อละ ${perLine} ประโยค จบประโยคให้สมบูรณ์`,
+    "ห้ามทักทาย ห้ามเกริ่นนำ ห้ามใส่หัวเรื่องหรือชื่อราศี/วันที่ซ้ำ ห้ามใช้เครื่องหมาย markdown (เช่น ** # -) และห้ามใช้อีโมจิ",
+    "เขียนด้วยภาษาง่ายๆ เหมือนเพื่อนเล่าให้ฟัง เน้นว่าชีวิตจริงจะเจออะไรและควรทำหรือไม่ควรทำอะไร พูดตรงๆ ชัดเจน (เช่น 'ควรเลื่อนการตัดสินใจเรื่องใหญ่ไปก่อน') ไม่เขียนกำกวมหรือเป็นกลอน",
+    "ถ้าจะอ้างอิงดาว ใช้ได้ไม่เกิน 1-2 จุด และต้องอธิบายผลต่อชีวิตจริงในประโยคเดียวกันเสมอ ห้ามโยนศัพท์ดาวทิ้งไว้เฉยๆ (เช่น ศุกร์ถอยหลัง ให้บอกว่าหมายถึงเรื่องรักที่เก่าๆ หรือการตัดสินใจเรื่องใจมักวกกลับมาให้ทบทวน)",
     "ห้ามระบุตัวเลขนำโชคหรือเลขเสี่ยงโชคใดๆ (ไม่ทำนายหวย) ห้ามกล่าวถึงว่าเป็น AI",
   ].join("\n");
 
@@ -239,9 +258,10 @@ export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Prom
       { role: "system", content: system },
       { role: "user", content: `ขอดูดวงราศี${input.sign} ${input.periodName}หน่อย` },
     ],
-    500
+    800
   );
-  return reply?.trim() || null;
+  // กันโมเดลหลุดใส่ markdown มา
+  return reply?.replace(/\*\*|^#+\s*/gm, "").trim() || null;
 }
 
 // ---------- ดวงเฉพาะเรื่อง/เฉพาะช่วงเวลา (ใช้ร่วมกันได้หลายหัวข้อใน /duang/[slug]) ----------

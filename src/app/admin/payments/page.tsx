@@ -31,7 +31,7 @@ export default async function AdminPaymentsPage() {
               <CardContent className="flex items-center justify-between gap-4 p-4">
                 <div className="text-sm">
                   <p className="font-display text-base text-foreground">
-                    {p.purpose === "ai_plus" ? "AI Plus" : p.purpose === "mu_club" ? "Mu Club" : `เติม ${p.coins} coin`} — {p.amountBaht} บาท
+                    {p.purpose === "coin_topup" ? `เติม ${p.coins} coin` : "สมาชิก (เลิกให้บริการแล้ว)"} — {p.amountBaht} บาท
                   </p>
                   <p className="text-xs text-muted-foreground">
                     ref: <span className="font-mono">{p.promptpayRef}</span> · user:{" "}

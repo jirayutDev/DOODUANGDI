@@ -59,7 +59,7 @@ export function TarotDeck({ sections }: { sections: TarotSection[] }) {
             </span>
             <span className="mt-2.5 text-[17px] font-semibold tracking-[0.1em] text-primary">{numeral(card)}</span>
             <span className="text-base font-medium leading-snug">{card.nameTh}</span>
-            <span className="text-[15px] text-muted-foreground">{card.nameEn}</span>
+            <span className="text-[16px] text-muted-foreground">{card.nameEn}</span>
           </Link>
         ))}
       </section>

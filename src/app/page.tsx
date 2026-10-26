@@ -48,7 +48,7 @@ export default function HomePage() {
       <div className="md:grid md:grid-cols-[1.25fr_1fr] md:items-center md:gap-14 md:pt-6">
         <section className="px-[18px] pt-2 md:px-0 md:pt-0">
           <p className="text-sm text-muted-foreground md:text-base">สมัครฟรี · ถามน้องมูได้ทุกวัน</p>
-          <h1 className="mt-1.5 font-display text-[44px] leading-[1.8] font-bold md:text-7xl">
+          <h1 className="mt-1.5 font-display text-[44px] leading-[1.9] font-bold md:text-7xl">
             มีเรื่องค้างใจ <br className="md:hidden" />
             <span className="relative whitespace-nowrap text-primary">
               ถามได้เลย
@@ -92,7 +92,7 @@ export default function HomePage() {
               <Link
                 key={a}
                 href="/chat"
-                className="shrink-0 rounded-full border border-line-soft px-3 py-1.5 text-[13px] whitespace-nowrap text-soft-text hover:text-foreground md:px-3.5 md:text-sm"
+                className="shrink-0 rounded-full border border-line-soft px-3 py-1.5 text-[16px] whitespace-nowrap text-soft-text hover:text-foreground md:px-3.5 md:text-sm"
               >
                 {a}
               </Link>
@@ -112,10 +112,10 @@ export default function HomePage() {
             />
           </div>
           <div>
-            <p className="text-[13px] text-muted-foreground md:text-sm">ไพ่ประจำวันนี้ของเธอ</p>
+            <p className="text-[16px] text-muted-foreground md:text-sm">ไพ่ประจำวันนี้ของเธอ</p>
             <h2 className="mt-0.5 text-[21px] leading-normal font-bold md:text-[26px]">{dailyCard.nameTh}</h2>
-            <p className="text-[13px] text-muted-foreground md:text-sm">{dailyCard.nameEn}</p>
-            <p className="mt-2.5 text-sm leading-[1.7] md:mt-3 md:text-base">{dailyCard.keywords}</p>
+            <p className="text-[16px] text-muted-foreground md:text-sm">{dailyCard.nameEn}</p>
+            <p className="mt-2.5 text-sm leading-[1.9] md:mt-3 md:text-base">{dailyCard.keywords}</p>
             <Link
               href={`/tarot/${dailyCard.slug}`}
               className="mt-1 inline-flex min-h-10 items-center gap-1 font-semibold text-primary"
@@ -142,7 +142,7 @@ export default function HomePage() {
               className={`flex min-h-[92px] flex-col gap-0.5 rounded-[14px] p-3.5 md:min-h-[120px] md:gap-1 md:rounded-2xl md:p-5 ${t.tone}`}
             >
               <span className="text-[17px] font-bold md:text-xl">{t.label}</span>
-              <span className="text-[13px] leading-normal opacity-80 md:text-sm">{t.blurb}</span>
+              <span className="text-[16px] leading-normal opacity-80 md:text-sm">{t.blurb}</span>
             </Link>
           ))}
         </div>
@@ -172,7 +172,7 @@ export default function HomePage() {
               <li key={o.href} className="border-b border-border">
                 <Link href={o.href} className="flex min-h-[52px] items-center justify-between md:min-h-[54px]">
                   <span>{o.label}</span>
-                  <span className="text-[13px] text-muted-foreground md:text-sm">{o.note} ›</span>
+                  <span className="text-[16px] text-muted-foreground md:text-sm">{o.note} ›</span>
                 </Link>
               </li>
             ))}
@@ -187,7 +187,7 @@ export default function HomePage() {
         </span>
         <span className="flex flex-1 flex-col leading-normal">
           <span className="font-semibold md:text-lg">อยากคุยกับหมอดูตัวจริง</span>
-          <span className="text-[13px] text-muted-foreground md:text-base">
+          <span className="text-[16px] text-muted-foreground md:text-base">
             หมอดูทุกคนผ่านการตรวจสอบตามมาตรฐาน Safe Mu
           </span>
         </span>

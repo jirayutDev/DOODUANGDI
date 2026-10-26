@@ -20,6 +20,16 @@ interface HoroscopeData {
   content: string;
 }
 
+// แยกเนื้อหาเป็นหัวข้อ "ป้าย: ข้อความ" — ดวงเก่าที่ไม่ได้อยู่ในรูปแบบนี้ (หรือมี ** ติดมา) จะคืน null แล้วแสดงเป็นข้อความธรรมดา
+function parseSections(content: string): { label: string; text: string }[] | null {
+  const out: { label: string; text: string }[] = [];
+  for (const raw of content.replace(/\*\*/g, "").split("\n")) {
+    const m = raw.trim().match(/^(ภาพรวม|ความรัก|การงาน|การเงิน|ข้อแนะนำ)\s*[:：]\s*(.+)$/);
+    if (m) out.push({ label: m[1], text: m[2].trim() });
+  }
+  return out.length >= 3 ? out : null;
+}
+
 export function ZodiacHoroscope({ kind }: { kind: HoroscopeKind }) {
   const [sign, setSign] = useState<string | null>(null);
   const [fetched, setFetched] = useState<{
@@ -102,14 +112,14 @@ export function ZodiacHoroscope({ kind }: { kind: HoroscopeKind }) {
               aria-pressed={on}
               onClick={() => setSign(z)}
               className={cn(
-                "min-h-[52px] rounded border py-1 text-[13px] leading-[1.4] transition-colors",
+                "min-h-[52px] rounded border py-1 text-[16px] leading-[1.9] transition-colors",
                 on
                   ? "border-primary bg-primary font-semibold text-primary-foreground"
                   : "border-line-soft bg-transparent text-foreground hover:border-primary"
               )}
             >
               <span className="block text-xs opacity-80">ราศี</span>
-              <span className="block text-[15px]">{z}</span>
+              <span className="block text-[16px]">{z}</span>
             </button>
           );
         })}
@@ -132,9 +142,33 @@ export function ZodiacHoroscope({ kind }: { kind: HoroscopeKind }) {
           <p className="text-sm text-muted-foreground">
             ราศี{sign} · {data.periodLabel}
           </p>
-          <p className="mt-2 whitespace-pre-line text-[17px] leading-[1.8] text-soft-text">
-            {data.content}
-          </p>
+          {(() => {
+            const sections = parseSections(data.content);
+            if (!sections) {
+              return (
+                <p className="mt-2 whitespace-pre-line text-[17px] leading-[1.9] text-soft-text">
+                  {data.content.replace(/\*\*/g, "")}
+                </p>
+              );
+            }
+            return (
+              <dl className="mt-3 flex flex-col">
+                {sections.map((s) => (
+                  <div key={s.label} className="border-b border-border py-3 last:border-b-0">
+                    <dt
+                      className={cn(
+                        "text-sm font-bold",
+                        s.label === "ข้อแนะนำ" ? "text-primary" : "text-muted-foreground"
+                      )}
+                    >
+                      {s.label}
+                    </dt>
+                    <dd className="mt-1 text-[17px] leading-[1.9] text-foreground">{s.text}</dd>
+                  </div>
+                ))}
+              </dl>
+            );
+          })()}
           <div className="mt-3">
             <Link
               href="/profile"

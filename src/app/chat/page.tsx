@@ -93,7 +93,7 @@ function ChatPageInner() {
       <div className="flex flex-wrap items-start gap-x-16 gap-y-10">
         <div className="flex min-w-0 flex-[3_1_480px] flex-col gap-3.5">
           <p className="text-sm text-muted-foreground">ห้องสนทนา</p>
-          <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">คุยกับน้องมู</h1>
+          <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">คุยกับน้องมู</h1>
           <p className="text-sm text-muted-foreground">
             ตอบจากวันเกิดของเธอ · ถามข้อละ {FEATURE_COSTS.chat.cost} coin
           </p>
@@ -109,21 +109,23 @@ function ChatPageInner() {
                 ) : (
                   <span className="w-16 shrink-0 text-sm leading-normal text-muted-foreground">เธอ</span>
                 )}
-                <div className="min-w-0 flex-1 whitespace-pre-wrap text-[17px]">
-                  {m.content}
+                <div className="min-w-0 flex-1 text-[17px]">
+                  <div className="whitespace-pre-wrap">{m.content}</div>
                   {m.card && (
-                    <div className="mt-3 inline-block rounded-xl border border-line-soft p-[5px] text-center">
-                      <div className="relative mx-auto aspect-[7/12] w-24 overflow-hidden rounded-xl bg-secondary">
-                        <Image
-                          src={m.card.imageUrl}
-                          alt={`${m.card.nameTh} (${m.card.nameEn})`}
-                          fill
-                          sizes="96px"
-                          className="object-cover"
-                        />
+                    <div className="my-4 flex justify-center">
+                      <div className="rounded-xl border border-line-soft p-[5px] text-center">
+                        <div className="relative mx-auto aspect-[7/12] w-24 overflow-hidden rounded-xl bg-secondary">
+                          <Image
+                            src={m.card.imageUrl}
+                            alt={`${m.card.nameTh} (${m.card.nameEn})`}
+                            fill
+                            sizes="96px"
+                            className="object-cover"
+                          />
+                        </div>
+                        <p className="mt-2 text-sm font-semibold tracking-widest text-primary">{m.card.nameEn}</p>
+                        <p className="text-base">{m.card.nameTh}</p>
                       </div>
-                      <p className="mt-2 text-sm font-semibold tracking-widest text-primary">{m.card.nameEn}</p>
-                      <p className="text-base">{m.card.nameTh}</p>
                     </div>
                   )}
                 </div>
@@ -137,7 +139,7 @@ function ChatPageInner() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-x-5 gap-y-2 text-[15px]">
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-[16px]">
             <button
               type="button"
               onClick={() => setInput("ขอไพ่ 1 ใบ")}
@@ -162,7 +164,7 @@ function ChatPageInner() {
 
           {(
             <div className="mt-2 flex items-end gap-3">
-              <label className="flex flex-1 flex-col gap-0.5 text-[13px] text-muted-foreground">
+              <label className="flex flex-1 flex-col gap-0.5 text-[16px] text-muted-foreground">
                 ข้อความถึงน้องมู
                 <textarea
                   value={input}
@@ -191,21 +193,21 @@ function ChatPageInner() {
               </button>
             </div>
           )}
-          <p className="text-center text-[13px] text-muted-foreground">
-            ถามน้องมู 1 ข้อ ใช้ {FEATURE_COSTS.chat.cost} coin · ต้องเข้าสู่ระบบและเป็นสมาชิก
+          <p className="text-center text-[16px] text-muted-foreground">
+            ถามน้องมู 1 ข้อ ใช้ {FEATURE_COSTS.chat.cost} coin · ต้องเข้าสู่ระบบ
           </p>
         </div>
 
         <aside className="hidden min-w-0 flex-[1_1_280px] flex-col gap-3.5 pt-[120px] md:flex">
           <div className="rounded-[18px] bg-secondary p-5">
-            <p className="text-[17px] text-muted-foreground">ปลดล็อกทุกบริการ</p>
-            <p className="mt-0.5 text-[28px] font-bold leading-[1.55]">AI Plus 69 บาท</p>
-            <p className="mb-4 mt-1.5 text-soft-text">สมัครสมาชิกเพื่อปลดล็อกทุกบริการ แล้วจ่ายด้วย coin ตามที่ใช้ ดวงรายวัน/สัปดาห์/เดือนฟรีเสมอ</p>
+            <p className="text-[17px] text-muted-foreground">จ่ายเท่าที่ใช้</p>
+            <p className="mt-0.5 text-[28px] font-bold leading-[1.9]">เติม coin เริ่มต้น 29 บาท</p>
+            <p className="mb-4 mt-1.5 text-soft-text">ไม่มีค่ารายเดือน ใช้บริการไหนก็จ่ายด้วย coin ตามที่ใช้ ดวงรายวัน/สัปดาห์/เดือนฟรีเสมอ</p>
             <Link
-              href="/membership"
+              href="/coins"
               className="inline-flex min-h-[50px] items-center justify-center rounded-[14px] bg-primary px-6 font-bold text-primary-foreground no-underline"
             >
-              ดูแพ็กเกจ
+              เติม coin
             </Link>
           </div>
           <div className="mt-5">

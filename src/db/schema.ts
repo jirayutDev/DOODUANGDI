@@ -10,6 +10,7 @@ import {
   boolean,
   check,
   primaryKey,
+  index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
@@ -140,14 +141,18 @@ export const coinWallets = pgTable(
 );
 
 // สมุดบัญชี coin: amount บวก = ได้รับ, ลบ = ใช้จ่าย
-export const coinTransactions = pgTable("coin_transactions", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull(),
-  amount: integer("amount").notNull(),
-  kind: text("kind").notNull(), // topup | code | bonus | spend | refund
-  ref: text("ref"), // feature key, payment id หรือโค้ด
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const coinTransactions = pgTable(
+  "coin_transactions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull(),
+    amount: integer("amount").notNull(),
+    kind: text("kind").notNull(), // topup | code | bonus | spend | refund
+    ref: text("ref"), // feature key, payment id หรือโค้ด
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("coin_transactions_user_created_idx").on(t.userId, t.createdAt.desc())]
+);
 
 // โค้ดแลก coin — แอดมินสร้าง ใช้ได้คนละครั้ง จำกัดจำนวนครั้งรวมและวันหมดอายุได้
 export const coinCodes = pgTable("coin_codes", {

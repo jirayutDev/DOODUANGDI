@@ -1,31 +1,15 @@
 // app/layout.tsx — โหลดฟอนต์ของธีมราตรีทอง และเปิดโหมดราตรีเป็นค่าเริ่มต้น
 import type { Metadata, Viewport } from "next";
-import { Charm, Cormorant_Garamond, Noto_Sans_Thai } from "next/font/google";
+import { Charm } from "next/font/google";
 import "./globals.css";
 import { BottomBar, SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/sonner";
 
-// หัวข้อภาษาไทย ลายมือแบบไทย ให้ความรู้สึกขลัง
+// ฟอนต์เดียวทั้งเว็บ: Charm ลายมือหัวม้วน
 const charm = Charm({
+  subsets: ["thai", "latin"],
   weight: ["400", "700"],
-  subsets: ["thai", "latin"],
   variable: "--font-charm",
-  display: "swap",
-});
-
-// เลขโรมันและชื่อไพ่ภาษาอังกฤษ
-const cormorant = Cormorant_Garamond({
-  weight: ["500", "600"],
-  style: ["normal", "italic"],
-  subsets: ["latin"],
-  variable: "--font-cormorant",
-  display: "swap",
-});
-
-// เนื้อหาทั่วไป อ่านง่ายบนมือถือ
-const notoSansThai = Noto_Sans_Thai({
-  subsets: ["thai", "latin"],
-  variable: "--font-noto-sans-thai",
   display: "swap",
 });
 
@@ -45,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="th"
-      className={`dark ${charm.variable} ${cormorant.variable} ${notoSansThai.variable} h-full`}
+      className={`dark ${charm.variable} h-full`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col antialiased">

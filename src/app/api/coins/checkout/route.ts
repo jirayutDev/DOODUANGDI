@@ -7,8 +7,8 @@ import { payments } from "@/db/schema";
 import { getCoinPackage } from "@/lib/coin-config";
 import { createPaymentQrDataUrl } from "@/lib/payment-qr";
 
-// เติม coin ผ่าน PromptPay: สร้างรายการ payment (purpose = coin_topup) แล้วใช้ flow เดียวกับสมาชิก
-// (ผู้ใช้กดแจ้งชำระที่ /api/membership/notify -> แอดมินยืนยัน -> ระบบเติม coin ให้)
+// เติม coin ผ่าน PromptPay: สร้างรายการ payment (purpose = coin_topup) แล้วให้ผู้ใช้แจ้งชำระ
+// (ผู้ใช้กดแจ้งชำระที่ /api/payments/notify -> แอดมินยืนยัน -> ระบบเติม coin ให้)
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const {

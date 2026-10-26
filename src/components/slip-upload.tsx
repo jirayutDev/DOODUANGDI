@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { loginHref } from "@/lib/safe-next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -58,7 +59,7 @@ export function SlipUpload({ paymentId, onVerified, onManualNotified }: SlipUplo
         return;
       }
       if (res.status === 503 && data.fallback) {
-        const n = await fetch("/api/membership/notify", {
+        const n = await fetch("/api/payments/notify", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ paymentId }),
@@ -73,7 +74,7 @@ export function SlipUpload({ paymentId, onVerified, onManualNotified }: SlipUplo
         return;
       }
       if (res.status === 401) {
-        router.push("/login");
+        router.push(loginHref(window.location.pathname));
         return;
       }
       setError(data.error ?? "ตรวจสลิปไม่สำเร็จ ลองใหม่อีกครั้ง");

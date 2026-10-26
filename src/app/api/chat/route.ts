@@ -16,7 +16,7 @@ const bodySchema = z.object({
     .optional(),
 });
 
-// แชทน้องมู: ล็อกอิน + เป็นสมาชิก + จ่าย coin ต่อข้อ (แทนโควตา 3 ข้อ/วันแบบเดิม)
+// แชทน้องมู: ล็อกอิน + จ่าย coin ต่อข้อ (แทนโควตา 3 ข้อ/วันแบบเดิม)
 export async function POST(req: NextRequest) {
   let json: unknown;
   try {

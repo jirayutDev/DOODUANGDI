@@ -21,7 +21,7 @@ export function DuangTopicClient({ slug }: { slug: string }) {
   const category = ALL_DIVINATION_CATEGORIES.find((c) => c.slug === slug);
   const needsPartner = slug === "compatibility";
   const freeKind = slug === "weekly" || slug === "monthly" ? slug : null;
-  const costLabel = `ใช้ ${FEATURE_COSTS["topic-reading"].cost} coin · ต้องเข้าสู่ระบบและเป็นสมาชิก`;
+  const costLabel = `ใช้ ${FEATURE_COSTS["topic-reading"].cost} coin · ต้องเข้าสู่ระบบ`;
 
   const { value: profile, checked: profileChecked } = useStoredJson<StoredProfile>(PROFILE_KEY);
   const [partnerZodiac, setPartnerZodiac] = useState("");
@@ -79,7 +79,7 @@ export function DuangTopicClient({ slug }: { slug: string }) {
     return (
       <div className={wrap}>
         <p className="text-sm text-muted-foreground">เลือกราศีของคุณ</p>
-        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">
+        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
           {category.name}
         </h1>
         <p className="mt-2.5 max-w-[560px] text-soft-text">{category.blurb}</p>
@@ -93,7 +93,7 @@ export function DuangTopicClient({ slug }: { slug: string }) {
     return (
       <div className={wrap}>
         <p className="text-sm text-muted-foreground">ดวงเฉพาะเรื่อง</p>
-        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">
+        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
           {category.name}
         </h1>
         <p className="mt-2.5 max-w-[560px] text-soft-text">{category.blurb}</p>
@@ -113,7 +113,7 @@ export function DuangTopicClient({ slug }: { slug: string }) {
   return (
     <div className={wrap}>
       <p className="text-sm text-muted-foreground">ดวงเฉพาะเรื่อง</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
         {category.name}
       </h1>
       <p className="mt-2.5 max-w-[560px] text-soft-text">{category.blurb}</p>
@@ -153,7 +153,7 @@ export function DuangTopicClient({ slug }: { slug: string }) {
                     aria-pressed={on}
                     onClick={() => setPartnerZodiac(z)}
                     className={cn(
-                      "min-h-[46px] rounded border text-[15px] transition-colors",
+                      "min-h-[46px] rounded border text-[16px] transition-colors",
                       on
                         ? "border-primary bg-primary font-semibold text-primary-foreground"
                         : "border-line-soft bg-transparent text-foreground hover:border-primary"

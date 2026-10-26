@@ -173,7 +173,7 @@ export default function FaceReadingPage() {
   return (
     <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">บุคลิกและนิสัย</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
         สแกนหน้า ดูโหงวเฮ้ง
       </h1>
       <p className="mt-2.5 max-w-[560px] text-soft-text">
@@ -274,7 +274,7 @@ export default function FaceReadingPage() {
           )}
           {stage === "preview" && (
             <p className="text-center text-xs text-muted-foreground">
-              ใช้ {featureCostLabel("face-reading")} · ต้องเข้าสู่ระบบและเป็นสมาชิก
+              ใช้ {featureCostLabel("face-reading")} · ต้องเข้าสู่ระบบ
             </p>
           )}
           {stage === "done" && (
@@ -304,7 +304,7 @@ export default function FaceReadingPage() {
                       <Icon className="mt-1 size-6 shrink-0 text-primary" />
                       <span className="flex flex-1 flex-col leading-normal">
                         <span className="text-base font-semibold">{label}</span>
-                        <span className="text-[13px] text-muted-foreground">
+                        <span className="text-[16px] text-muted-foreground">
                           {part?.reading ?? "-"}
                         </span>
                       </span>

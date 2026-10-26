@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { and, eq, gt, gte, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { getDb } from "@/db";
-import { coinCodeRedemptions, coinCodes, coinTransactions, coinWallets, memberships } from "@/db/schema";
-import { FEATURE_COSTS, type FeatureKey } from "@/lib/coin-config";
+import { coinCodeRedemptions, coinCodes, coinTransactions, coinWallets } from "@/db/schema";
+import { FEATURE_COSTS, WELCOME_COINS, type FeatureKey } from "@/lib/coin-config";
 
 // รหัส error ที่ client ใช้แยกว่าจะพาไปหน้าไหน
-export type CoinErrorCode = "login_required" | "membership_required" | "insufficient_coins";
+export type CoinErrorCode = "login_required" | "insufficient_coins";
 
 function fail(code: CoinErrorCode, error: string, status: number, extra?: object) {
   return NextResponse.json({ error, code, ...extra }, { status });
@@ -15,15 +15,6 @@ function fail(code: CoinErrorCode, error: string, status: number, extra?: object
 export async function getBalance(userId: string): Promise<number> {
   const [w] = await getDb().select().from(coinWallets).where(eq(coinWallets.userId, userId)).limit(1);
   return w?.balance ?? 0;
-}
-
-export async function hasActiveMembership(userId: string): Promise<boolean> {
-  const [m] = await getDb()
-    .select({ id: memberships.userId })
-    .from(memberships)
-    .where(and(eq(memberships.userId, userId), gt(memberships.expiresAt, new Date())))
-    .limit(1);
-  return !!m;
 }
 
 type Db = ReturnType<typeof getDb>;
@@ -46,6 +37,19 @@ export async function grantCoins(userId: string, amount: number, kind: string, r
   else await getDb().transaction(run);
 }
 
+// ให้ coin ต้อนรับครั้งเดียว: ได้เฉพาะตอนสร้าง wallet ของผู้ใช้เป็นครั้งแรก (insert สำเร็จแถวเดียวเท่านั้น)
+export async function ensureWelcomeCoins(userId: string): Promise<void> {
+  await getDb().transaction(async (tx) => {
+    const created = await tx
+      .insert(coinWallets)
+      .values({ userId, balance: WELCOME_COINS })
+      .onConflictDoNothing()
+      .returning({ id: coinWallets.userId });
+    if (created.length === 0) return;
+    await tx.insert(coinTransactions).values({ userId, amount: WELCOME_COINS, kind: "bonus", ref: "welcome" });
+  });
+}
+
 // ตัด coin แบบอะตอมมิก: สำเร็จเฉพาะเมื่อยอดพอ ไม่มีทางติดลบแม้กดพร้อมกันหลายครั้ง
 export async function spendCoins(userId: string, amount: number, ref: string): Promise<boolean> {
   return getDb().transaction(async (tx) => {
@@ -64,7 +68,7 @@ export type ChargeResult =
   | { ok: false; res: NextResponse }
   | { ok: true; userId: string; cost: number; refund: () => Promise<void> };
 
-// ด่านเดียวของทุกบริการที่เสียเงิน: ล็อกอิน -> เป็นสมาชิก -> หัก coin
+// ด่านเดียวของทุกบริการที่เสียเงิน: ล็อกอิน -> หัก coin
 // เรียกหลังตรวจ input เสร็จ และก่อนเรียก AI; ถ้า AI พัง ให้เรียก refund()
 export async function chargeFeature(feature: FeatureKey): Promise<ChargeResult> {
   const { cost, label } = FEATURE_COSTS[feature];
@@ -78,9 +82,6 @@ export async function chargeFeature(feature: FeatureKey): Promise<ChargeResult> 
   if (!userId) return { ok: false, res: fail("login_required", "กรุณาเข้าสู่ระบบก่อนใช้งาน", 401) };
 
   try {
-    if (!(await hasActiveMembership(userId))) {
-      return { ok: false, res: fail("membership_required", "บริการนี้สำหรับสมาชิก สมัครสมาชิกก่อนนะ", 403) };
-    }
     if (!(await spendCoins(userId, cost, feature))) {
       return {
         ok: false,

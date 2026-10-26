@@ -13,7 +13,7 @@ export default async function AdminCodesPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-[18px] pb-10 pt-2 md:px-10 md:pt-8">
-      <h1 className="mb-6 text-[28px] font-bold leading-[1.45]">โค้ดแลก coin</h1>
+      <h1 className="mb-6 text-[28px] font-bold leading-[1.9]">โค้ดแลก coin</h1>
       <CodeForm />
       <ul className="mt-8">
         {list.map((c) => (

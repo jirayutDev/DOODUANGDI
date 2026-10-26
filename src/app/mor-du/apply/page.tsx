@@ -8,7 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { displayName } from "@/lib/auth-user";
+import { loginHref } from "@/lib/safe-next";
+import type { User } from "@supabase/supabase-js";
 
 interface Application {
   status: "pending" | "approved" | "rejected" | "suspended";
@@ -24,16 +28,16 @@ const STATUS_LABEL: Record<Application["status"], string> = {
 
 export default function MorDuApplyPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [email, setEmail] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null);
+      setUser(data.user ?? null);
       setCheckingAuth(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setEmail(session?.user?.email ?? null);
+      setUser(session?.user ?? null);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -41,86 +45,35 @@ export default function MorDuApplyPage() {
   return (
     <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">สำหรับหมอดู</p>
-      <h1 className="mt-0.5 mb-2 text-[28px] font-bold leading-[1.45] text-foreground md:text-[40px]">สมัครเป็นหมอดู</h1>
+      <h1 className="mt-0.5 mb-2 text-[28px] font-bold leading-[1.9] text-foreground md:text-[40px]">สมัครเป็นหมอดู</h1>
       <p className="mb-8 max-w-xl text-sm text-muted-foreground">
-        เปิดร้านฟรี หลังผ่านการตรวจสอบตามมาตรฐาน Safe Mu — บัญชีหมอดูแยกต่างหากจากบัญชีลูกดวงทั่วไป
+        เปิดร้านฟรี หลังผ่านการตรวจสอบตามมาตรฐาน Safe Mu — ใช้บัญชีเดียวกับที่ใช้ดูดวง เมื่อใบสมัครผ่านจะมีโปรไฟล์หมอดูเพิ่มเข้ามา
       </p>
 
-      {checkingAuth ? null : email ? (
-        <MorDuApplicationForm email={email} />
+      {checkingAuth ? null : user ? (
+        <MorDuApplicationForm email={displayName(user)} />
       ) : (
-        <MorDuAuthForm />
+        <MorDuLoginPrompt />
       )}
     </div>
   );
 }
 
-function MorDuAuthForm() {
-  const [mode, setMode] = useState<"signin" | "signup">("signup");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    const supabase = createClient();
-    try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast.success("สมัครบัญชีหมอดูสำเร็จ เช็กอีเมลเพื่อยืนยันตัวตนก่อนกรอกใบสมัคร");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast.success("เข้าสู่ระบบสำเร็จ");
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "ทำรายการไม่สำเร็จ");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+function MorDuLoginPrompt() {
   return (
     <Card className="max-w-xl border-line-soft bg-card">
       <CardContent className="pt-6">
         <p className="mb-4 text-sm text-muted-foreground">
-          ใช้บัญชีสำหรับหมอดูโดยเฉพาะ ไม่ใช่บัญชีที่ใช้ดูดวงฝั่งลูกดวง
+          เข้าสู่ระบบหรือสมัครสมาชิกก่อน แล้วกรอกใบสมัครหมอดูต่อได้เลย ใช้บัญชีเดียวกับที่ใช้ดูดวง
         </p>
-        <form onSubmit={handleSubmit} className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="mor-du-email">อีเมล</Label>
-            <Input
-              id="mor-du-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="mor-du-password">รหัสผ่าน</Label>
-            <Input
-              id="mor-du-password"
-              type="password"
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" disabled={loading}>
-            {mode === "signup" ? "สมัครบัญชีหมอดู" : "เข้าสู่ระบบหมอดู"}
+        <div className="flex flex-wrap gap-3">
+          <Button asChild>
+            <Link href={loginHref("/mor-du/apply")}>เข้าสู่ระบบ</Link>
           </Button>
-          <button
-            type="button"
-            className="text-center text-xs text-muted-foreground underline underline-offset-2"
-            onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-          >
-            {mode === "signup" ? "มีบัญชีหมอดูแล้ว เข้าสู่ระบบ" : "ยังไม่มีบัญชีหมอดู สมัครใหม่"}
-          </button>
-        </form>
+          <Button asChild variant="outline">
+            <Link href={loginHref("/mor-du/apply", "signup")}>สมัครสมาชิก</Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -181,7 +134,7 @@ function MorDuApplicationForm({ email }: { email: string }) {
   return (
     <>
       <div className="mb-4 flex max-w-xl items-center justify-between text-xs text-muted-foreground">
-        <span>บัญชีหมอดู: {email}</span>
+        <span>บัญชี: {email}</span>
         <button className="underline underline-offset-2" onClick={handleSignOut}>
           ออกจากระบบ
         </button>

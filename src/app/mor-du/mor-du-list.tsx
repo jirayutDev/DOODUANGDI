@@ -63,7 +63,7 @@ export function MorDuList({ list }: { list: MorDuItem[] }) {
               </span>
               <div className="flex-1">
                 <p className="text-lg font-semibold">{m.displayName}</p>
-                <p className="text-[13px] text-primary">✓ ผ่าน Safe Mu</p>
+                <p className="text-[16px] text-primary">✓ ผ่าน Safe Mu</p>
               </div>
             </div>
             <p className="text-sm text-soft-text">{m.bio}</p>
@@ -74,11 +74,11 @@ export function MorDuList({ list }: { list: MorDuItem[] }) {
                 .join(" · ")}
             </p>
             <div className="flex gap-2.5">
-              <span className="flex min-h-[50px] flex-1 items-center justify-center rounded-[14px] bg-primary px-3 text-[15px] font-bold text-primary-foreground">
+              <span className="flex min-h-[50px] flex-1 items-center justify-center rounded-[14px] bg-primary px-3 text-[16px] font-bold text-primary-foreground">
                 ถามเป็นข้อ ฿{m.priceQuestion}
               </span>
               {m.priceLiveMinute ? (
-                <span className="flex min-h-[50px] flex-1 items-center justify-center rounded-[14px] bg-secondary px-3 text-[15px] font-semibold">
+                <span className="flex min-h-[50px] flex-1 items-center justify-center rounded-[14px] bg-secondary px-3 text-[16px] font-semibold">
                   แชทสด ฿{m.priceLiveMinute}/นาที
                 </span>
               ) : null}

@@ -17,7 +17,7 @@ export default async function AdminPage() {
               <CardTitle className="font-display text-lg">ตรวจสอบการชำระเงิน</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              ยืนยันรายการสมัครสมาชิก AI Plus / Mu Club ที่แจ้งชำระเงินมา
+              ยืนยันรายการเติม coin ที่แจ้งชำระเงินมา
             </CardContent>
           </Card>
         </Link>

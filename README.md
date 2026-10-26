@@ -35,10 +35,11 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## ระบบ coin, สมาชิก และดวงตามตารางเวลา
+## ระบบ coin และดวงตามตารางเวลา
 
 - ฟรี: ดวงรายวัน `/daily-horoscope`, รายสัปดาห์ `/duang/weekly`, รายเดือน `/duang/monthly` (ตามราศี)
-- บริการอื่นทั้งหมดต้อง ล็อกอิน + เป็นสมาชิก + จ่าย coin ราคาแก้ที่ `src/lib/coin-config.ts`
+- บริการอื่นทั้งหมดต้อง ล็อกอิน + จ่าย coin ต่อครั้ง (ไม่มีสมาชิก/แพ็กเกจรายเดือน) ราคาแก้ที่ `src/lib/coin-config.ts`
+- ผู้ใช้ใหม่ได้ coin ต้อนรับครั้งเดียว (`WELCOME_COINS` ใน `coin-config.ts`) ให้ตอนเปิด `/api/coins/balance` ครั้งแรก
 - เติม coin: `/coins` (PromptPay QR) และแลกโค้ด; แอดมินสร้างโค้ดที่ `/admin/codes`
 - หลังแก้ schema ให้รัน `npx drizzle-kit push` (ตารางใหม่: coin_wallets, coin_transactions, coin_codes, coin_code_redemptions, scheduled_horoscopes และคอลัมน์ payments.coins, payments.slip_trans_ref)
 

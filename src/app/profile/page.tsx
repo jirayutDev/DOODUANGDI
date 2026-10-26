@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,16 @@ import { calculateBirthProfile, type BirthProfile } from "@/lib/astrology";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ActivityPanel } from "./activity-panel";
+import { AccountPanel } from "./account-panel";
+import { IdentityCard, type Identity } from "./identity-card";
+
+const TABS = [
+  { value: "birth", label: "ข้อมูลเกิด" },
+  { value: "account", label: "บัญชี" },
+  { value: "summary", label: "สรุป coin" },
+  { value: "history", label: "กิจกรรม" },
+] as const;
 
 const GENDERS = [
   { value: "female", label: "หญิง" },
@@ -18,7 +28,7 @@ const GENDERS = [
 
 const fieldLabel = "text-sm font-medium text-foreground";
 const fieldInput =
-  "h-[50px] rounded-xl border-0 bg-cream px-3.5 text-base text-ink placeholder:text-ink/50 md:text-base [color-scheme:light]";
+  "h-[50px] rounded-xl border-0 bg-cream dark:bg-cream px-3.5 text-base text-ink placeholder:text-ink/50 md:text-base [color-scheme:light]";
 
 const STORAGE_KEY = "ommu:birth-profile";
 
@@ -36,6 +46,8 @@ export default function ProfilePage() {
   const [gender, setGender] = useState("");
   const [result, setResult] = useState<StoredProfile | null>(null);
   const [saving, setSaving] = useState(false);
+  const [identity, setIdentity] = useState<Identity | null>(null);
+  const [tab, setTab] = useState<(typeof TABS)[number]["value"]>("birth");
 
   const { value: stored, checked } = useStoredJson<StoredProfile>(STORAGE_KEY);
   const [seeded, setSeeded] = useState(false);
@@ -49,6 +61,27 @@ export default function ProfilePage() {
       setGender(stored.gender ?? "");
     }
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    const load = () =>
+      supabase.auth
+        .getUser()
+        .then(({ data: { user } }) => {
+          if (cancelled) return;
+          if (!user) return setIdentity(null);
+          const meta = (user.user_metadata ?? {}) as { full_name?: string; phone?: string };
+          setIdentity({ email: user.email ?? "", name: meta.full_name ?? "", phone: meta.phone ?? "" });
+        })
+        .catch(() => undefined);
+    void load();
+    window.addEventListener("profile:changed", load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("profile:changed", load);
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -107,13 +140,48 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-[1120px] px-[18px] pb-10 pt-2 md:px-10 md:pb-20 md:pt-8">
-      <p className="text-sm text-muted-foreground">ดวงโปรไฟล์</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.45] md:text-[40px]">บอกวันเกิดหน่อย</h1>
-      <p className="mt-2.5 max-w-[560px] text-soft-text">
-        กรอกข้อมูลเกิดครั้งเดียว ทุกศาสตร์ในเว็บจะดึงข้อมูลนี้ไปใช้ร่วมกัน ยิ่งกรอกละเอียด ดวงยิ่งแม่น
-      </p>
+      <p className="text-sm text-muted-foreground">โปรไฟล์ของฉัน</p>
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
+        {tab === "birth" ? "บอกวันเกิดหน่อย" : tab === "account" ? "ข้อมูลบัญชี" : tab === "summary" ? "ใช้ coin ไปกับอะไร" : "กิจกรรมของฉัน"}
+      </h1>
+      {tab === "birth" && (
+        <p className="mt-2.5 max-w-[560px] text-soft-text">
+          กรอกข้อมูลเกิดครั้งเดียว ทุกศาสตร์ในเว็บจะดึงข้อมูลนี้ไปใช้ร่วมกัน ยิ่งกรอกละเอียด ดวงยิ่งแม่น
+        </p>
+      )}
 
-      <div className="mt-8 flex flex-wrap items-start gap-x-20 gap-y-12">
+      {identity && <IdentityCard identity={identity} />}
+
+      <div role="tablist" aria-label="หมวดโปรไฟล์" className="mt-6 inline-flex flex-wrap gap-1.5 rounded-[14px] bg-card p-1">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.value}
+            onClick={() => setTab(t.value)}
+            className={cn(
+              "min-h-10 rounded-[10px] px-4 text-sm transition-colors",
+              tab === t.value ? "bg-cream font-bold text-ink" : "font-medium text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "account" && (
+        <div className="mt-6" role="tabpanel">
+          <AccountPanel />
+        </div>
+      )}
+      {(tab === "summary" || tab === "history") && (
+        <div className="mt-6" role="tabpanel">
+          <ActivityPanel view={tab} />
+        </div>
+      )}
+
+      <div className={cn("mt-8 flex flex-wrap items-start gap-x-20 gap-y-12", tab !== "birth" && "hidden")}>
         <form onSubmit={handleSubmit} className="flex min-w-0 flex-1 basis-[320px] flex-col gap-[18px]">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="birthDate" className={fieldLabel}>
@@ -130,7 +198,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="birthTime" className={fieldLabel}>
-              เวลาเกิด <span className="text-[13px] text-muted-foreground">(ถ้ามี)</span>
+              เวลาเกิด <span className="text-[16px] text-muted-foreground">(ถ้ามี)</span>
             </Label>
             <Input
               id="birthTime"
@@ -142,7 +210,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="birthProvince" className={fieldLabel}>
-              จังหวัดเกิด <span className="text-[13px] text-muted-foreground">(ถ้ามี)</span>
+              จังหวัดเกิด <span className="text-[16px] text-muted-foreground">(ถ้ามี)</span>
             </Label>
             <Input
               id="birthProvince"
@@ -154,7 +222,7 @@ export default function ProfilePage() {
           </div>
           <fieldset>
             <legend className="mb-1.5 p-0 text-sm text-muted-foreground">
-              เพศ <span className="text-[15px]">ไม่บังคับ</span>
+              เพศ <span className="text-[16px]">ไม่บังคับ</span>
             </legend>
             <div role="group" className="inline-flex flex-wrap gap-1.5 rounded-[14px] bg-card p-1">
               {GENDERS.map((g) => (
@@ -186,7 +254,7 @@ export default function ProfilePage() {
 
         {result && (
           <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-3.5">
-            <h2 className="text-[26px] font-bold leading-[1.5]">ผลดวงโปรไฟล์ของเธอ</h2>
+            <h2 className="text-[26px] font-bold leading-[1.9]">ผลดวงโปรไฟล์ของเธอ</h2>
             <dl className="rounded-[18px] bg-card px-[18px] py-1">
               <ProfileStat label="ราศี" value={result.zodiacSign} />
               <ProfileStat label="วันเกิดไทย" value={`วัน${result.thaiBirthDay}`} />
@@ -204,7 +272,7 @@ export default function ProfilePage() {
 function ProfileStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-border py-[13px] last:border-b-0">
-      <dt className="text-[15px] text-muted-foreground">{label}</dt>
+      <dt className="text-[16px] text-muted-foreground">{label}</dt>
       <dd className="text-right text-[17px] font-bold">{value}</dd>
     </div>
   );
