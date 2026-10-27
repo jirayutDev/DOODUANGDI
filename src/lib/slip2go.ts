@@ -72,7 +72,7 @@ export async function verifySlipImage(
   try {
     res = await fetch(`${base}/api/verify-slip/qr-image/info`, {
       method: "POST",
-      headers: { Authorization: process.env.SLIP2GO_SECRET! },
+      headers: { Authorization: `Bearer ${process.env.SLIP2GO_SECRET!}` },
       body: form,
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
@@ -117,7 +117,7 @@ export async function generateQrPayloadViaSlip2Go(amountBaht: number): Promise<s
   try {
     const res = await fetch(`${base}/api/qr-payment/generate-qr-code`, {
       method: "POST",
-      headers: { "content-type": "application/json", Authorization: process.env.SLIP2GO_SECRET! },
+      headers: { "content-type": "application/json", Authorization: `Bearer ${process.env.SLIP2GO_SECRET!}` },
       body: JSON.stringify({
         promptPayCode: process.env.PROMPTPAY_ID,
         promptPayType: process.env.SLIP2GO_PROMPTPAY_TYPE,
