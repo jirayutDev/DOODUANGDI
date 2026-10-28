@@ -262,6 +262,7 @@ export const aiUsage = pgTable(
     completionTokens: integer("completion_tokens").notNull().default(0),
     costMicroUsd: integer("cost_micro_usd"), // ต้นทุนเป็นไมโครดอลลาร์ (1,000,000 = 1 USD) ว่าง = ยังไม่รู้ราคาโมเดลนี้
     ms: integer("ms").notNull().default(0), // เวลาที่ใช้ (มิลลิวินาที)
+    error: text("error"), // สาเหตุที่ล้มเหลว (ข้อความสั้น ไม่มีคีย์/ข้อมูลผู้ใช้) ว่าง = สำเร็จ
   },
   (t) => [index("ai_usage_created_idx").on(t.createdAt.desc()), index("ai_usage_feature_idx").on(t.feature, t.createdAt.desc())]
 );

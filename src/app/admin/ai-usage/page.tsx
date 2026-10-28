@@ -395,7 +395,7 @@ function Report({
           },
         ]}
       />
-      <DataTable className="[&_table]:min-w-[900px]">
+      <DataTable className="[&_table]:min-w-[1100px]">
         <thead>
           <tr>
             <Th>เวลา</Th>
@@ -405,6 +405,7 @@ function Report({
             <Th className="text-right">ต้นทุน</Th>
             <Th className="text-right">เวลา (วิ)</Th>
             <Th>สถานะ</Th>
+            <Th>สาเหตุที่ล้มเหลว</Th>
             <Th>ผู้ใช้</Th>
           </tr>
         </thead>
@@ -413,13 +414,19 @@ function Report({
             <Tr key={r.id}>
               <Td className="whitespace-nowrap text-muted-foreground">{fmtDate(r.createdAt)}</Td>
               <Td>{FEATURE_LABEL[r.feature] ?? r.feature}</Td>
-              <Td className="font-mono text-xs">{r.model}</Td>
+              <Td>
+                <span className="font-mono text-xs">{r.model}</span>
+                <span className="block text-xs text-muted-foreground">{r.provider}</span>
+              </Td>
               <Td className="text-right text-muted-foreground">
                 {num(r.promptTokens)} / {num(r.completionTokens)}
               </Td>
               <Td className="text-right">{r.costMicroUsd === null ? <span className="text-amber-300">ไม่ทราบราคา</span> : baht(microUsdToBaht(r.costMicroUsd, usdThb))}</Td>
               <Td className="text-right text-muted-foreground">{(r.ms / 1000).toFixed(1)}</Td>
               <Td>{r.ok ? <StatusBadge tone="success">สำเร็จ</StatusBadge> : <StatusBadge tone="danger">ล้มเหลว</StatusBadge>}</Td>
+              <Td className="min-w-[14rem] max-w-[22rem] whitespace-normal text-xs text-red-200">
+                {r.ok ? <span className="text-muted-foreground">-</span> : (r.error ?? "ไม่มีบันทึกสาเหตุ (เกิดก่อนเพิ่มระบบบันทึก)")}
+              </Td>
               <Td>
                 {r.userId ? (
                   <Link href={`${base}/users/${r.userId}`} className="font-mono text-xs text-muted-foreground hover:text-primary">
@@ -431,7 +438,7 @@ function Report({
               </Td>
             </Tr>
           ))}
-          {log.length === 0 && <EmptyRow cols={8}>{Object.keys(filters).length ? "ไม่พบรายการตามตัวกรอง" : "ไม่มีรายการ"}</EmptyRow>}
+          {log.length === 0 && <EmptyRow cols={9}>{Object.keys(filters).length ? "ไม่พบรายการตามตัวกรอง" : "ไม่มีรายการ"}</EmptyRow>}
         </tbody>
       </DataTable>
       <Pagination page={page} total={logTotal} path={`${base}/ai-usage`} params={{ days: range, ...filters }} />

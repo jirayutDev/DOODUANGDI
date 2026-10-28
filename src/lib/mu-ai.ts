@@ -93,21 +93,65 @@ class AiCallError extends Error {
   }
 }
 
-// ผู้ให้บริการตอบ HTTP ไม่ใช่ 2xx เก็บ status ไว้แยกว่าเป็นปัญหาของทั้งสาย (ล่ม/คีย์/เครดิต) หรือเฉพาะโมเดล (ไม่มีชื่อนี้/ถูกจำกัด)
+// ผู้ให้บริการตอบ HTTP ไม่ใช่ 2xx เก็บ status และ code ไว้แยกว่าเป็นปัญหาของทั้งสาย (ล่ม/คีย์/เครดิต) หรือเฉพาะโมเดล (ไม่มีชื่อนี้/ใช้ไม่ได้ชั่วคราว)
 class AiHttpError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code: string;
+  constructor(message: string, status: number, code = "") {
     super(message);
     this.name = "AiHttpError";
     this.status = status;
+    this.code = code;
   }
 }
 
-// ล้มทั้งสาย: เซิร์ฟเวอร์ล่ม (5xx) คีย์/เครดิต/สิทธิ์มีปัญหา (401/402/403) หรือต่อเครือข่ายไม่ติด — ลองโมเดลอื่นในสายเดิมก็ไม่ช่วย ให้ข้ามไปสายสำรองเลย
-function isLaneWideFailure(e: unknown): boolean {
-  if (e instanceof AiHttpError) return e.status >= 500 || e.status === 401 || e.status === 402 || e.status === 403;
-  return e instanceof TypeError; // fetch ต่อไม่ติด (DNS/ถูกตัดการเชื่อมต่อ)
+// อ่าน error จากตัวคำตอบ: รองรับทั้งแบบ OpenAI { error: { message, code } } และแบบข้อความตรงๆ { error: "...", code?: "..." } (เช่น Wisporta)
+function parseErrorBody(body: unknown): { message: string; code: string } {
+  if (!body || typeof body !== "object") return { message: "", code: "" };
+  const b = body as { error?: unknown; code?: unknown; message?: unknown };
+  if (typeof b.error === "string") return { message: b.error, code: typeof b.code === "string" ? b.code : "" };
+  if (b.error && typeof b.error === "object") {
+    const e = b.error as { message?: unknown; code?: unknown; type?: unknown };
+    return {
+      message: typeof e.message === "string" ? e.message : "",
+      code: typeof e.code === "string" ? e.code : typeof e.type === "string" ? e.type : "",
+    };
+  }
+  return { message: typeof b.message === "string" ? b.message : "", code: typeof b.code === "string" ? b.code : "" };
 }
+
+// down = ทั้งสายใช้ไม่ได้ (พักสายนี้แล้วข้ามไปสายสำรอง) skip = ข้ามไปสายสำรองรอบนี้แต่ไม่พักสาย (ติดลิมิตชั่วคราว) model = ลองโมเดลอื่นในสายเดิมต่อ
+function classifyFailure(e: unknown): "down" | "skip" | "model" {
+  if (e instanceof AiHttpError) {
+    // ใช้ไม่ได้เฉพาะโมเดลนี้ (ไม่มีโมเดล/ต้นทางของโมเดลมีปัญหา) โมเดลอื่นในสายเดียวกันอาจยังใช้ได้
+    if (/model_unavailable|model_not_found|upstream_error/i.test(e.code)) return "model";
+    if (e.status === 429) return "skip";
+    if (e.status >= 500 || e.status === 401 || e.status === 402 || e.status === 403) return "down";
+    return "model";
+  }
+  return e instanceof TypeError ? "down" : "model"; // fetch ต่อไม่ติด (DNS/ถูกตัดการเชื่อมต่อ)
+}
+
+// ข้อความสาเหตุที่ล้มเหลวเป็นภาษาไทยสั้นๆ สำหรับบันทึกในหลังบ้าน (ไม่ใส่คีย์/ข้อมูลผู้ใช้/เนื้อหาคำตอบ)
+function failureReason(e: unknown): string {
+  if (e instanceof AiHttpError) {
+    const detail = e.message.replace(/^[^:]*:\s*/, "").slice(0, 160);
+    return `ผู้ให้บริการตอบ error ${detail}`;
+  }
+  if (e instanceof Error) {
+    if (e.name === "TimeoutError") return "ตอบช้าเกินเวลาที่กำหนด";
+    if (/^Empty response/.test(e.message)) return "ตอบกลับมาว่างเปล่า";
+    if (/^Truncated response/.test(e.message)) return "ตอบไม่ครบ (token หมดกลางคัน)";
+    if (/non-Thai CJK/.test(e.message)) return "คำตอบปนอักษรจีน/ญี่ปุ่น/เกาหลี";
+    if (/^Refusal response/.test(e.message)) return "AI ตอบปฏิเสธหรือแนะนำตัวเป็นเครื่องมืออื่น (เช่น Kiro) ไม่ใช่คำทำนาย — มักเป็นเพราะ pool ครอบคำสั่งของเรา";
+    if (/^Incomplete response/.test(e.message)) return "รูปแบบคำตอบไม่ครบตามที่กำหนด (ขาดหัวข้อ)";
+    if (e instanceof TypeError) return `ต่อผู้ให้บริการไม่ติด (${e.message.slice(0, 80)})`;
+    return e.message.slice(0, 200);
+  }
+  return String(e).slice(0, 200);
+}
+
+const REFUSAL_PATTERN = /kiro|development environment|as an ai|i('| a)m (not able|unable)|ฉันขออภัย|ไม่สามารถ(ช่วย)?(ทำนาย|ดูดวง)|ขอโทษนะ แต่ผมไม่/i;
 
 function usageOf(data: { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; cost?: unknown } } | null): CallUsage {
   const u = data?.usage;
@@ -161,8 +205,7 @@ async function callOpenRouter(
   let res = await send(tokenParam, temp);
   // โมเดลบางตัวไม่รับพารามิเตอร์ที่เราส่ง (GPT รุ่นใหม่ไม่รับ max_tokens/temperature ที่ไม่ใช่ค่าเริ่มต้น) ปรับตามข้อความ error แล้วลองใหม่ได้สูงสุด 2 รอบ
   for (let attempt = 0; attempt < 2 && res.status === 400; attempt++) {
-    const peek = (await res.clone().json().catch(() => null)) as { error?: { message?: string } } | null;
-    const msg = peek?.error?.message ?? "";
+    const msg = parseErrorBody(await res.clone().json().catch(() => null)).message;
     if (temp !== undefined && /temperature/i.test(msg)) temp = undefined;
     else if (tokenParam === "max_tokens" && /max_tokens|max_completion_tokens/i.test(msg)) tokenParam = "max_completion_tokens";
     else break;
@@ -170,10 +213,10 @@ async function callOpenRouter(
   }
 
   if (!res.ok) {
-    // ข้อความ error จาก OpenRouter (เช่น โมเดลไม่มี/ถูกจำกัดการใช้) ไม่มีคีย์หรือข้อมูลผู้ใช้ ตัดให้สั้นก่อนบันทึก
-    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
-    const detail = body?.error?.message ? ` — ${String(body.error.message).slice(0, 140)}` : "";
-    throw new AiHttpError(`OpenRouter API error (${model}): ${res.status}${detail}`, res.status);
+    // ข้อความ error จากผู้ให้บริการ (เช่น โมเดลไม่มี/ถูกจำกัดการใช้) ไม่มีคีย์หรือข้อมูลผู้ใช้ ตัดให้สั้นก่อนบันทึก
+    const { message, code } = parseErrorBody(await res.json().catch(() => null));
+    const detail = message || code ? ` — ${[code, message].filter(Boolean).join(": ").slice(0, 160)}` : "";
+    throw new AiHttpError(`OpenRouter API error (${model}): ${res.status}${detail}`, res.status, code);
   }
   const data = await res.json();
   const usage = usageOf(data);
@@ -241,20 +284,21 @@ async function chatViaOpenRouter(
       try {
         const { text, usage } = await callOpenRouter(model, messages, maxTokens, remaining, provider, temperature ?? DEFAULT_TEMPERATURE);
         received = usage;
-        if (validate && !validate(text)) throw new Error(`Incomplete response (${model})`);
+        if (validate && !validate(text)) throw new Error(REFUSAL_PATTERN.test(text) ? `Refusal response (${model})` : `Incomplete response (${model})`);
         markLaneUp(provider);
         if (ctx) await logAiUsage({ ctx, model, provider: host, ok: true, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, providerCostUsd: usage.costUsd, ms: Date.now() - attemptStart });
         return text;
       } catch (e) {
         if (e instanceof AiCallError) received = e.usage;
-        if (ctx) await logAiUsage({ ctx, model, provider: host, ok: false, promptTokens: received.promptTokens, completionTokens: received.completionTokens, providerCostUsd: received.costUsd, ms: Date.now() - attemptStart });
+        if (ctx) await logAiUsage({ ctx, model, provider: host, ok: false, promptTokens: received.promptTokens, completionTokens: received.completionTokens, providerCostUsd: received.costUsd, ms: Date.now() - attemptStart, error: failureReason(e) });
         // บันทึกสาเหตุ (ไม่มีคีย์/ข้อมูลผู้ใช้) เพื่อไล่ปัญหาใน log ของโฮสต์ แล้วลองโมเดลถัดไปในสาย
         const reason = e instanceof Error ? (e.name === "TimeoutError" ? `${model}: ตอบช้าเกินเวลา` : e.message) : String(e);
         console.error(`[ai] model failed (${host}):`, reason);
         lastAiFailures.push(`${host}: ${reason}`.slice(0, 240));
-        if (isLaneWideFailure(e)) {
-          markLaneDown(provider); // ทั้งสายล่ม: พักสายนี้ไว้ แล้วข้ามไปสายสำรองเลย ไม่ลองโมเดลอื่นในสายเดิม
-          break;
+        const kind = classifyFailure(e);
+        if (kind !== "model") {
+          if (kind === "down") markLaneDown(provider); // ทั้งสายล่ม: พักสายนี้ไว้ ส่วนติดลิมิตชั่วคราว (skip) ไม่พัก
+          break; // ข้ามไปสายสำรองเลย ไม่ลองโมเดลอื่นในสายเดิม
         }
       }
     }
@@ -606,19 +650,20 @@ export async function generateFaceReading(imageDataUrl: string, userId?: string 
         const outcome = normalizeFaceReading(extractJson(text));
         logged = true;
         markLaneUp(visionProv);
-        await logAiUsage({ ctx, model, provider: hostOf(visionProv), ok: !!outcome, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, providerCostUsd: usage.costUsd, ms: Date.now() - attemptStart });
+        await logAiUsage({ ctx, model, provider: hostOf(visionProv), ok: !!outcome, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, providerCostUsd: usage.costUsd, ms: Date.now() - attemptStart, error: outcome ? null : "อ่านผลจาก AI ไม่ได้ (ไม่ใช่ JSON ครบทุกหัวข้อ)" });
         if (outcome) return outcome;
       } catch (e) {
         // ล้มระหว่างเรียก: ได้คำตอบแต่ใช้ไม่ได้ (AiCallError) ก็มีโทเค็นให้บันทึก ส่วน error อื่นไม่มีโทเค็น
         if (!logged) {
           const u = e instanceof AiCallError ? e.usage : NO_USAGE;
-          await logAiUsage({ ctx, model, provider: hostOf(visionProv), ok: false, promptTokens: u.promptTokens, completionTokens: u.completionTokens, providerCostUsd: u.costUsd, ms: Date.now() - attemptStart });
+          await logAiUsage({ ctx, model, provider: hostOf(visionProv), ok: false, promptTokens: u.promptTokens, completionTokens: u.completionTokens, providerCostUsd: u.costUsd, ms: Date.now() - attemptStart, error: failureReason(e) });
         }
         // บันทึกสาเหตุ (ไม่มีรูปหรือคีย์) แล้วลองโมเดลถัดไปในสาย — ค้นคำว่า [ai-vision] ใน log ของโฮสต์
         console.error(`[ai-vision] model failed (${hostOf(visionProv)}):`, e instanceof Error ? e.message : String(e));
-        if (isLaneWideFailure(e)) {
-          markLaneDown(visionProv);
-          break; // ทั้งสายล่ม ไปสายสำรอง
+        const kind = classifyFailure(e);
+        if (kind !== "model") {
+          if (kind === "down") markLaneDown(visionProv);
+          break; // ทั้งสายใช้ไม่ได้ ไปสายสำรอง
         }
       }
     }

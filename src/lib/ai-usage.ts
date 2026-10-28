@@ -19,6 +19,7 @@ export interface AiUsageEntry {
   completionTokens: number;
   providerCostUsd?: number | null; // ต้นทุนที่ผู้ให้บริการส่งมาให้ (ถ้ามี)
   ms: number;
+  error?: string | null; // สาเหตุที่ล้มเหลว (สั้น ไม่มีคีย์/ข้อมูลผู้ใช้)
 }
 
 const MAX_INT = 2_000_000_000;
@@ -48,6 +49,7 @@ export async function logAiUsage(entry: AiUsageEntry): Promise<void> {
         completionTokens,
         costMicroUsd: cost,
         ms: clampInt(entry.ms),
+        error: entry.ok ? null : (entry.error ?? "ไม่ทราบสาเหตุ").slice(0, 300),
       });
   } catch (e) {
     console.error("[ai-usage] log failed:", e instanceof Error ? e.name : "unknown");
