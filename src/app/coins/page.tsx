@@ -7,9 +7,9 @@ import { loginHref } from "@/lib/safe-next";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { SlipUpload } from "@/components/slip-upload";
 import { CoinIcon } from "@/components/coin-icon";
-import { COIN_PACKAGES, FEATURE_COSTS, describeTransaction } from "@/lib/coin-config";
+import { FEATURE_COSTS, describeTransaction } from "@/lib/coin-config";
+import { usePricing } from "@/lib/pricing-client";
 
 interface BalanceInfo {
   loggedIn: boolean;
@@ -22,6 +22,7 @@ interface Checkout {
   qrDataUrl: string;
   amount: number;
   coins: number;
+  expiresAt: string;
 }
 
 interface HistoryItem {
@@ -33,6 +34,7 @@ interface HistoryItem {
 }
 
 export default function CoinsPage() {
+  const { costs, packages } = usePricing();
   const [info, setInfo] = useState<BalanceInfo | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [checkout, setCheckout] = useState<Checkout | null>(null);
@@ -55,6 +57,47 @@ export default function CoinsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
+
+  // โพลสถานะทุก 5 วินาทีระหว่างรอจ่าย จนจ่ายสำเร็จหรือ QR หมดอายุ (เกินเวลา 30 วิ เผื่อ Payso ยืนยันช้า)
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    if (!checkout) return;
+    const { paymentId, expiresAt } = checkout;
+    const deadline = new Date(expiresAt).getTime() + 30_000;
+    let stopped = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExpired(false);
+    const timer = setInterval(async () => {
+      if (Date.now() > deadline) {
+        setExpired(true);
+        clearInterval(timer);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/payments/status?paymentId=${paymentId}`);
+        if (!res.ok || stopped) return;
+        const { status } = (await res.json()) as { status: string };
+        if (status === "confirmed") {
+          stopped = true;
+          clearInterval(timer);
+          toast.success("ชำระเงินสำเร็จ เติม coin ให้แล้ว");
+          setCheckout(null);
+          refresh();
+        } else if (status === "rejected") {
+          stopped = true;
+          clearInterval(timer);
+          toast.error("รายการนี้ถูกยกเลิก");
+          setCheckout(null);
+        }
+      } catch {
+        // เครือข่ายสะดุด รอรอบหน้า
+      }
+    }, 5000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [checkout, refresh]);
 
   async function handleBuy(packageId: string) {
     setLoadingPack(packageId);
@@ -128,17 +171,12 @@ export default function CoinsPage() {
               เติม {checkout.coins} coin — {checkout.amount} บาท
             </h2>
             <p className="text-soft-text">
-              สแกนจ่ายด้วย PromptPay ผ่านแอปธนาคาร โอนแล้วอัปโหลดสลิป ระบบตรวจให้อัตโนมัติ · เลขอ้างอิง{" "}
+              สแกนจ่ายด้วย PromptPay ผ่านแอปธนาคาร ชำระแล้วระบบเติม coin ให้อัตโนมัติ ไม่ต้องส่งสลิป · เลขอ้างอิง{" "}
               <span className="font-mono text-foreground">{checkout.ref}</span>
             </p>
-            <SlipUpload
-              paymentId={checkout.paymentId}
-              onVerified={() => {
-                setCheckout(null);
-                refresh();
-              }}
-              onManualNotified={() => setCheckout(null)}
-            />
+            <p role="status" className="text-sm text-primary">
+              {expired ? "QR หมดอายุแล้ว กดยกเลิกแล้วเลือกแพ็กเกจใหม่" : "กำลังรอการชำระเงิน... QR ใช้ได้ 10 นาที"}
+            </p>
             <div className="flex flex-wrap gap-3">
               <Button variant="ghost" onClick={() => setCheckout(null)} className="h-auto min-h-[50px] rounded-[14px] px-5">
                 ยกเลิก
@@ -150,7 +188,7 @@ export default function CoinsPage() {
         <section className="mt-9">
           <h2 className="text-xl font-bold">เลือกแพ็กเกจ</h2>
           <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-5 md:gap-x-4">
-            {COIN_PACKAGES.map((p, i) => {
+            {packages.map((p, i) => {
               const best = !!p.badge;
               const busy = loadingPack === p.id;
               return (
@@ -164,7 +202,7 @@ export default function CoinsPage() {
                     best
                       ? "border-2 border-transparent shadow-[0_12px_32px_rgba(232,184,74,0.28)] [background:linear-gradient(160deg,#54419a_0%,#31275f_50%,#1f1a40_100%)_padding-box,linear-gradient(135deg,#fff1b8_0%,#e8b84a_45%,#8a5a10_100%)_border-box]"
                       : "border-line-soft bg-gradient-to-b from-[#2d2457] to-[#1d1840]",
-                    i === COIN_PACKAGES.length - 1 && "col-span-2 md:col-span-1"
+                    i === packages.length - 1 && "col-span-2 md:col-span-1"
                   )}
                 >
                   {p.badge && (
@@ -226,10 +264,10 @@ export default function CoinsPage() {
               <span>ดวงรายวัน · รายสัปดาห์ · รายเดือน</span>
               <span className="font-semibold text-primary">ฟรี</span>
             </li>
-            {Object.values(FEATURE_COSTS).map((f) => (
-              <li key={f.label} className="flex justify-between border-b border-border py-2 text-sm">
-                <span>{f.label}</span>
-                <span className="text-soft-text">{f.cost} coin</span>
+            {(Object.keys(FEATURE_COSTS) as (keyof typeof FEATURE_COSTS)[]).map((key) => (
+              <li key={key} className="flex justify-between border-b border-border py-2 text-sm">
+                <span>{FEATURE_COSTS[key].label}</span>
+                <span className="text-soft-text">{costs[key]} coin</span>
               </li>
             ))}
           </ul>
@@ -258,7 +296,7 @@ export default function CoinsPage() {
       )}
 
       <p className="mt-10 text-center text-xs text-muted-foreground">
-        ระบบยืนยันการชำระเงินเป็นแบบแจ้งแล้วให้แอดมินตรวจสอบ coin จะเข้ากระเป๋าหลังแอดมินยืนยัน
+        ชำระเงินผ่าน Payso (PromptPay) · coin เข้ากระเป๋าอัตโนมัติหลังชำระสำเร็จ
       </p>
     </div>
   );

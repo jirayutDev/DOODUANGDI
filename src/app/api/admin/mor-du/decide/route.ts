@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 
 const bodySchema = z.object({
   userId: z.string().uuid(),
-  action: z.enum(["approve", "reject"]),
+  action: z.enum(["approve", "reject", "suspend"]),
 });
 
 export async function POST(req: NextRequest) {
@@ -31,7 +31,10 @@ export async function POST(req: NextRequest) {
   const db = getDb();
   await db
     .update(morDus)
-    .set({ status: action === "approve" ? "approved" : "rejected", updatedAt: new Date() })
+    .set({
+      status: action === "approve" ? "approved" : action === "suspend" ? "suspended" : "rejected",
+      updatedAt: new Date(),
+    })
     .where(eq(morDus.userId, userId));
 
   return NextResponse.json({ ok: true });

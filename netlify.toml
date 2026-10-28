@@ -1,0 +1,8 @@
+[build]
+  command = "npm run build"
+
+# Next/Turbopack เก็บแคชคอมไพล์ไว้ใน .next/cache ซึ่งมีค่า env ที่ใช้ตอน build (เช่น DATABASE_URL, CRON_SECRET)
+# แคชนี้ไม่ได้ถูกเสิร์ฟให้ผู้ใช้ แต่ตัวสแกน secret ของ Netlify เห็นว่าเป็น "ค่าลับอยู่ในไฟล์ build" แล้วให้ build ล้ม
+# จึงยกเว้นเฉพาะโฟลเดอร์แคชนี้ (ไม่ปิดการสแกนทั้งหมด จะได้ยังจับกรณีค่าลับหลุดเข้าโค้ดหรือหน้าเว็บจริง)
+[build.environment]
+  SECRETS_SCAN_OMIT_PATHS = ".next/cache/**"

@@ -40,19 +40,19 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - ฟรี: ดวงรายวัน `/daily-horoscope`, รายสัปดาห์ `/duang/weekly`, รายเดือน `/duang/monthly` (ตามราศี)
 - บริการอื่นทั้งหมดต้อง ล็อกอิน + จ่าย coin ต่อครั้ง (ไม่มีสมาชิก/แพ็กเกจรายเดือน) ราคาแก้ที่ `src/lib/coin-config.ts`
 - ผู้ใช้ใหม่ได้ coin ต้อนรับครั้งเดียว (`WELCOME_COINS` ใน `coin-config.ts`) ให้ตอนเปิด `/api/coins/balance` ครั้งแรก
-- เติม coin: `/coins` (PromptPay QR) และแลกโค้ด; แอดมินสร้างโค้ดที่ `/admin/codes`
+- เติม coin: `/coins` (PromptPay QR) และแลกโค้ด; แอดมินจัดการทุกอย่างที่หน้าแอดมิน (path ลับตาม `ADMIN_PATH`)
 - หลังแก้ schema ให้รัน `npx drizzle-kit push` (ตารางใหม่: coin_wallets, coin_transactions, coin_codes, coin_code_redemptions, scheduled_horoscopes และคอลัมน์ payments.coins, payments.slip_trans_ref)
 
 ### ตัวแปร env ที่เกี่ยวข้อง
 
 | ตัวแปร | ใช้ทำอะไร |
 | --- | --- |
-| `PROMPTPAY_ID` | เบอร์/เลขพร้อมเพย์ของบัญชีเราที่ใช้สร้าง QR รับเงิน |
-| `ADMIN_EMAILS` | อีเมลแอดมิน คั่นด้วยจุลภาค |
+| `PAYSO_MERCHANT_ID`, `PAYSO_AUTH_KEY` | รับเงินด้วย Payso PromptPay QR (สร้าง QR) |
+| `PAYSO_API_KEY`, `PAYSO_SECRET_KEY` | Inquiry API ของ Payso ใช้เช็กสถานะซ้ำก่อนเติม coin (postback ของ Payso ไม่มี signature) |
+| `ADMIN_PATH`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET` | ล็อกอินและ path ลับของหน้าแอดมิน สร้างด้วย `npm run admin:setup` (ไม่ตั้ง ADMIN_PATH = ปิดหน้าแอดมิน) |
 | `CRON_SECRET` | รหัสที่ cron ใช้เรียก `/api/cron/horoscopes` (Vercel แนบให้เองเมื่อตั้งค่าไว้) |
-| `SLIP2GO_API_URL`, `SLIP2GO_SECRET` | เปิดตรวจสลิปอัตโนมัติด้วย Slip2Go (ไม่ตั้ง = แอดมินยืนยันมือ) |
-| `SLIP2GO_PROMPTPAY_TYPE` (`phone_number`/`citizen_id`/`e_wallet`), `SLIP2GO_ACCOUNT_NAME` | ให้ Slip2Go สร้าง QR จาก `PROMPTPAY_ID` ของเรา (ไม่ตั้ง/เรียกไม่สำเร็จ = สร้างเองในเครื่อง) |
-| `SLIP2GO_RECEIVER_TYPE`, `SLIP2GO_RECEIVER_ACCOUNT` | ไม่บังคับ: ตรวจว่าสลิปโอนเข้าบัญชีเราจริง |
+
+ตั้ง Postback URL ใน Payso Control Panel เป็น `https://โดเมน/api/payments/payso/postback` (Payso มีแค่ production ทดสอบด้วยเงินจริงขั้นต่ำ 6 บาท)
 
 ### ตารางสร้างดวงล่วงหน้า (`vercel.json`, เวลาไทย)
 

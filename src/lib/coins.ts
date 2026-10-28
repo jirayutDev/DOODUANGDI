@@ -3,7 +3,8 @@ import { and, eq, gte, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { getDb } from "@/db";
 import { coinCodeRedemptions, coinCodes, coinTransactions, coinWallets } from "@/db/schema";
-import { FEATURE_COSTS, WELCOME_COINS, type FeatureKey } from "@/lib/coin-config";
+import { FEATURE_COSTS, type FeatureKey } from "@/lib/coin-config";
+import { getPricing } from "@/lib/pricing";
 
 // รหัส error ที่ client ใช้แยกว่าจะพาไปหน้าไหน
 export type CoinErrorCode = "login_required" | "insufficient_coins";
@@ -39,14 +40,16 @@ export async function grantCoins(userId: string, amount: number, kind: string, r
 
 // ให้ coin ต้อนรับครั้งเดียว: ได้เฉพาะตอนสร้าง wallet ของผู้ใช้เป็นครั้งแรก (insert สำเร็จแถวเดียวเท่านั้น)
 export async function ensureWelcomeCoins(userId: string): Promise<void> {
+  const welcome = (await getPricing()).welcomeCoins;
+  if (welcome <= 0) return;
   await getDb().transaction(async (tx) => {
     const created = await tx
       .insert(coinWallets)
-      .values({ userId, balance: WELCOME_COINS })
+      .values({ userId, balance: welcome })
       .onConflictDoNothing()
       .returning({ id: coinWallets.userId });
     if (created.length === 0) return;
-    await tx.insert(coinTransactions).values({ userId, amount: WELCOME_COINS, kind: "bonus", ref: "welcome" });
+    await tx.insert(coinTransactions).values({ userId, amount: welcome, kind: "bonus", ref: "welcome" });
   });
 }
 
@@ -71,7 +74,8 @@ export type ChargeResult =
 // ด่านเดียวของทุกบริการที่เสียเงิน: ล็อกอิน -> หัก coin
 // เรียกหลังตรวจ input เสร็จ และก่อนเรียก AI; ถ้า AI พัง ให้เรียก refund()
 export async function chargeFeature(feature: FeatureKey): Promise<ChargeResult> {
-  const { cost, label } = FEATURE_COSTS[feature];
+  const { label } = FEATURE_COSTS[feature];
+  const cost = (await getPricing()).costs[feature];
   let userId: string | undefined;
   try {
     const supabase = await createClient();

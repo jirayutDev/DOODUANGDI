@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Mars, Transgender, Venus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { handleCoinError, featureCostLabel } from "@/lib/coin-client";
+import { handleCoinError } from "@/lib/coin-client";
+import { Cost } from "@/lib/pricing-client";
 
 type Gender = "male" | "female" | "lgbt";
 
@@ -183,7 +184,7 @@ export default function LoveMatchPage() {
             {loading ? "น้องมูกำลังทำนาย..." : "ดูว่าเข้ากันไหม"}
           </button>
           <p className="text-center text-sm text-muted-foreground">
-            ใช้ {featureCostLabel("love-match")} · ต้องเข้าสู่ระบบ
+            ใช้ <Cost feature="love-match" unit /> · ต้องเข้าสู่ระบบ
           </p>
         </div>
 

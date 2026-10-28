@@ -154,9 +154,20 @@ export async function readHoroscope(kind: HoroscopeKind, sign: string, period = 
   return findOne(kind, period.key, sign);
 }
 
-export async function generateAllSigns(kind: HoroscopeKind) {
+// รหัสช่วงเวลาที่ cron/แอดมินจะสร้างให้ตอนนี้ (บวก 30 นาทีให้ตรงกับ generateAllSigns)
+export function currentGenerationPeriodKey(kind: HoroscopeKind): string {
+  return getPeriod(kind, new Date(Date.now() + 30 * 60 * 1000)).key;
+}
+
+// regenerate = ลบของช่วงนี้ทิ้งแล้วสร้างใหม่ (แอดมินกดสร้างใหม่เมื่อดวงที่ได้เพี้ยน)
+export async function generateAllSigns(kind: HoroscopeKind, opts: { regenerate?: boolean } = {}) {
   // คิดจากเวลา +30 นาที เผื่อ scheduler ยิงก่อนเที่ยงคืนเล็กน้อย จะได้เติมของวัน/สัปดาห์/เดือนใหม่ถูกต้อง
   const period = getPeriod(kind, new Date(Date.now() + 30 * 60 * 1000));
+  if (opts.regenerate) {
+    await getDb()
+      .delete(scheduledHoroscopes)
+      .where(and(eq(scheduledHoroscopes.kind, kind), eq(scheduledHoroscopes.periodKey, period.key)));
+  }
   const results = { period: period.key, created: 0, skipped: 0, failed: [] as string[] };
   const queue = [...ZODIAC_SIGN_NAMES];
 

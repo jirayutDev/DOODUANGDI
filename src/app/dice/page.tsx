@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { handleCoinError, featureCostLabel, type CoinApiError } from "@/lib/coin-client";
+import { handleCoinError, type CoinApiError } from "@/lib/coin-client";
+import { Cost } from "@/lib/pricing-client";
 
 interface DiceResult {
   die1: number;
@@ -124,7 +125,7 @@ export default function DicePage() {
             {rolling ? "กำลังทอย..." : "ทอยเต๋า"}
           </button>
           <p className="text-center text-xs text-muted-foreground">
-            ใช้ {featureCostLabel("dice")} · ต้องเข้าสู่ระบบ
+            ใช้ <Cost feature="dice" unit /> · ต้องเข้าสู่ระบบ
           </p>
         </div>
 

@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { TAROT_CARDS, type TarotCard } from "@/lib/tarot-data";
-import { FEATURE_COSTS } from "@/lib/coin-config";
+import { Cost } from "@/lib/pricing-client";
 import { handleCoinError } from "@/lib/coin-client";
 import { SPREADS, type Spread } from "@/lib/spreads";
 
@@ -203,7 +203,7 @@ export default function ReadingPage() {
               {shuffling ? "กำลังสับไพ่..." : `สับไพ่ ${needed} ใบ`}
             </button>
             <p className="mt-2 text-center text-[16px] text-muted-foreground">
-              เปิดไพ่ได้ฟรี · ให้น้องมูสรุปผลใช้ {FEATURE_COSTS["reading-summary"].cost} coin
+              เปิดไพ่ได้ฟรี · ให้น้องมูสรุปผลใช้ <Cost feature="reading-summary" /> coin
             </p>
           </div>
         </div>
@@ -257,7 +257,7 @@ export default function ReadingPage() {
           <SpreadResult spread={spread} drawn={result} />
           <SummarySection loading={summaryLoading} summary={summary} />
           <p className="mt-3 text-center text-[16px] text-muted-foreground">
-            น้องมูสรุปผลเปิดไพ่ ใช้ {FEATURE_COSTS["reading-summary"].cost} coin · ต้องเข้าสู่ระบบ
+            น้องมูสรุปผลเปิดไพ่ ใช้ <Cost feature="reading-summary" /> coin · ต้องเข้าสู่ระบบ
           </p>
           <SpreadDetailList spread={spread} drawn={result} />
           <div className="mt-[18px] flex flex-wrap justify-center gap-2.5">

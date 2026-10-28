@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getAdminUser } from "@/lib/admin";
 import { getDb } from "@/db";
@@ -26,6 +26,22 @@ export async function GET() {
   if (!(await requireAdmin())) return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 });
   const rows = await getDb().select().from(coinCodes).orderBy(desc(coinCodes.createdAt)).limit(100);
   return NextResponse.json({ items: rows });
+}
+
+// เปิด/ปิดโค้ด (ปิดแล้วแลกไม่ได้ แต่ประวัติการใช้ยังอยู่)
+export async function PATCH(req: NextRequest) {
+  if (!(await requireAdmin())) return NextResponse.json({ error: "ไม่มีสิทธิ์" }, { status: 403 });
+  const parsed = z
+    .object({ code: z.string().trim().regex(/^[A-Za-z0-9-]{3,32}$/), active: z.boolean() })
+    .safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 });
+  const updated = await getDb()
+    .update(coinCodes)
+    .set({ active: parsed.data.active })
+    .where(eq(coinCodes.code, parsed.data.code.toUpperCase()))
+    .returning({ code: coinCodes.code });
+  if (updated.length === 0) return NextResponse.json({ error: "ไม่พบโค้ดนี้" }, { status: 404 });
+  return NextResponse.json({ ok: true });
 }
 
 export async function POST(req: NextRequest) {

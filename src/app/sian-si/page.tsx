@@ -4,7 +4,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import type { SianSiFortune } from "@/lib/sian-si";
 import { cn } from "@/lib/utils";
-import { handleCoinError, featureCostLabel, type CoinApiError } from "@/lib/coin-client";
+import { handleCoinError, type CoinApiError } from "@/lib/coin-client";
+import { Cost } from "@/lib/pricing-client";
 
 export default function SianSiPage() {
   const [shaking, setShaking] = useState(false);
@@ -82,7 +83,7 @@ export default function SianSiPage() {
             {shaking ? "กำลังเขย่า..." : done ? "เขย่าใหม่อีกครั้ง" : "เขย่าเซียมซี"}
           </button>
           <p className="text-center text-xs text-muted-foreground">
-            ใช้ {featureCostLabel("sian-si")} · ต้องเข้าสู่ระบบ
+            ใช้ <Cost feature="sian-si" unit /> · ต้องเข้าสู่ระบบ
           </p>
         </div>
 

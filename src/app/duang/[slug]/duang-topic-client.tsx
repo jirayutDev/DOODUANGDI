@@ -9,7 +9,7 @@ import { ZODIAC_SIGN_NAMES } from "@/lib/astrology";
 import { cn } from "@/lib/utils";
 import { ZodiacHoroscope } from "@/components/zodiac-horoscope";
 import { handleCoinError, type CoinApiError } from "@/lib/coin-client";
-import { FEATURE_COSTS } from "@/lib/coin-config";
+import { Cost } from "@/lib/pricing-client";
 
 const PROFILE_KEY = "ommu:birth-profile";
 
@@ -21,7 +21,11 @@ export function DuangTopicClient({ slug }: { slug: string }) {
   const category = ALL_DIVINATION_CATEGORIES.find((c) => c.slug === slug);
   const needsPartner = slug === "compatibility";
   const freeKind = slug === "weekly" || slug === "monthly" ? slug : null;
-  const costLabel = `ใช้ ${FEATURE_COSTS["topic-reading"].cost} coin · ต้องเข้าสู่ระบบ`;
+  const costLabel = (
+    <>
+      ใช้ <Cost feature="topic-reading" unit /> · ต้องเข้าสู่ระบบ
+    </>
+  );
 
   const { value: profile, checked: profileChecked } = useStoredJson<StoredProfile>(PROFILE_KEY);
   const [partnerZodiac, setPartnerZodiac] = useState("");

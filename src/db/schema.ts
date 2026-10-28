@@ -8,6 +8,7 @@ import {
   integer,
   pgEnum,
   boolean,
+  jsonb,
   check,
   primaryKey,
   index,
@@ -188,6 +189,13 @@ export const scheduledHoroscopes = pgTable(
   },
   (t) => [uniqueIndex("scheduled_horoscopes_uniq").on(t.kind, t.periodKey, t.sign)]
 );
+
+// ตั้งค่าที่แอดมินแก้ได้จากหน้าแอดมิน (key เช่น "pricing" = ราคาแพ็กเกจเติม coin + ค่า coin ต่อบริการ + coin ต้อนรับ)
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const profilesRelations = relations(profiles, ({ many }) => ({
   chatMessages: many(chatMessages),

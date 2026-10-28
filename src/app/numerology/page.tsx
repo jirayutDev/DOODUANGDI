@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { handleCoinError, featureCostLabel, type CoinApiError } from "@/lib/coin-client";
+import { handleCoinError, type CoinApiError } from "@/lib/coin-client";
+import { Cost } from "@/lib/pricing-client";
 
 interface NumerologyResult {
   digits: string;
@@ -82,7 +83,7 @@ export default function NumerologyPage() {
             {paying ? "กำลังคำนวณ..." : "คำนวณ"}
           </button>
           <p className="text-xs text-muted-foreground">
-            ใช้ {featureCostLabel("numerology")} · ต้องเข้าสู่ระบบ
+            ใช้ <Cost feature="numerology" unit /> · ต้องเข้าสู่ระบบ
           </p>
         </div>
 

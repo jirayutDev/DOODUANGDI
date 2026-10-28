@@ -1,7 +1,6 @@
 "use client";
 
 import { toast } from "sonner";
-import { FEATURE_COSTS, type FeatureKey } from "@/lib/coin-config";
 import { loginHref } from "@/lib/safe-next";
 
 export interface CoinApiError {
@@ -26,6 +25,3 @@ export function handleCoinError(data: CoinApiError | null | undefined): boolean 
   return true;
 }
 
-export function featureCostLabel(feature: FeatureKey) {
-  return `${FEATURE_COSTS[feature].cost} coin`;
-}

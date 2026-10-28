@@ -1,4 +1,5 @@
-// ราคา coin ต่อบริการ และแพ็กเกจเติม coin — แก้ราคาที่ไฟล์นี้ไฟล์เดียว
+// ราคา coin ต่อบริการ และแพ็กเกจเติม coin — ไฟล์นี้เป็นค่าเริ่มต้น/ชื่อบริการ
+// ราคาจริงที่ใช้งานแอดมินแก้ได้ที่หน้าแอดมิน (เก็บในตาราง app_settings) ดู src/lib/pricing.ts
 // ฟรีไม่ต้องล็อกอิน: ดวงรายวัน (/daily-horoscope), ดวงรายสัปดาห์ (weekly), ดวงรายเดือน (monthly)
 
 export const FEATURE_COSTS = {
@@ -47,6 +48,7 @@ export const KIND_LABEL: Record<string, string> = {
   bonus: "โบนัส",
   spend: "ใช้บริการ",
   refund: "คืน coin",
+  admin: "แอดมินปรับ coin",
 };
 
 // ข้อความของแต่ละรายการใน ledger: spend = ชื่อฟีเจอร์, refund = "คืน coin: ชื่อฟีเจอร์"
@@ -56,3 +58,16 @@ export function describeTransaction(item: { kind: string; ref: string | null }):
   if (item.kind === "bonus" && item.ref === "welcome") return "coin ต้อนรับ";
   return feature ?? KIND_LABEL[item.kind] ?? item.kind;
 }
+
+// ราคาที่ใช้งานจริง (ค่าเริ่มต้น = ค่าด้านบน ถูกแทนที่ด้วยที่แอดมินตั้ง)
+export interface Pricing {
+  costs: Record<FeatureKey, number>;
+  packages: CoinPackage[];
+  welcomeCoins: number;
+}
+
+export const DEFAULT_PRICING: Pricing = {
+  costs: Object.fromEntries(Object.entries(FEATURE_COSTS).map(([k, v]) => [k, v.cost])) as Record<FeatureKey, number>,
+  packages: COIN_PACKAGES,
+  welcomeCoins: WELCOME_COINS,
+};

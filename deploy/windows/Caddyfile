@@ -1,8 +1,0 @@
-# Caddy: reverse proxy + HTTPS อัตโนมัติ (Let's Encrypt)
-# เปลี่ยน example.com เป็นโดเมนจริง (A record ต้องชี้มาที่ 154.197.69.93 และเปิดพอร์ต 80/443)
-example.com {
-	encode zstd gzip
-	# Caddy ส่ง X-Forwarded-For / X-Forwarded-Host / X-Forwarded-Proto ให้เอง
-	# แอปอ่านสองตัวแรกสำหรับตัวจำกัดความถี่และตัวกัน CSRF
-	reverse_proxy 127.0.0.1:3000
-}

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { adminSlug } from "@/lib/admin-path";
 
 // รีเฟรช session cookie ของ Supabase ทุก request ตาม pattern แนะนำของ @supabase/ssr
 // ถ้าไม่มี proxy นี้ session ฝั่ง server component จะหลุดก่อนเวลาจริง
@@ -23,6 +24,17 @@ function isForbiddenOrigin(request: NextRequest): boolean {
 export async function proxy(request: NextRequest) {
   if (isForbiddenOrigin(request)) {
     return NextResponse.json({ error: "forbidden origin" }, { status: 403 });
+  }
+
+  // หน้าแอดมินซ่อนไว้หลัง path ลับ (ADMIN_PATH): /<slug>/... ถูก rewrite ไป /admin/... ภายใน
+  // ส่วนเข้า /admin ตรงๆ ตอบ 404 เหมือนไม่มีหน้านี้ ถ้าไม่ตั้ง ADMIN_PATH หน้าแอดมินปิดทั้งหมด
+  const path = request.nextUrl.pathname;
+  const slug = adminSlug();
+  if (path === "/admin" || path.startsWith("/admin/")) return new NextResponse(null, { status: 404 });
+  if (slug && (path === `/${slug}` || path.startsWith(`/${slug}/`))) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/admin${path.slice(slug.length + 1)}`;
+    return NextResponse.rewrite(url);
   }
 
   let response = NextResponse.next({ request });

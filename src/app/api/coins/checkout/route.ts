@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDb } from "@/db";
 import { payments } from "@/db/schema";
-import { getCoinPackage } from "@/lib/coin-config";
-import { createPaymentQrDataUrl } from "@/lib/payment-qr";
+import { getPricing } from "@/lib/pricing";
+import { createPromptPayQr, isPaysoConfigured, newPaysoRef } from "@/lib/payso";
 
-// เติม coin ผ่าน PromptPay: สร้างรายการ payment (purpose = coin_topup) แล้วให้ผู้ใช้แจ้งชำระ
-// (ผู้ใช้กดแจ้งชำระที่ /api/payments/notify -> แอดมินยืนยัน -> ระบบเติม coin ให้)
+// เติม coin ผ่าน Payso PromptPay QR: สร้างรายการ payment (purpose = coin_topup) แล้วขอ QR จาก Payso
+// ลูกค้าสแกนจ่าย -> Payso ส่ง postback (/api/payments/payso/postback) หรือหน้าเว็บโพล /api/payments/status -> เติม coin
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const {
@@ -39,20 +39,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
 
-  const pack = getCoinPackage(body.packageId ?? "");
+  const pack = (await getPricing()).packages.find((p) => p.id === body.packageId);
   if (!pack) return NextResponse.json({ error: "ไม่พบแพ็กเกจนี้" }, { status: 400 });
 
-  const promptpayId = process.env.PROMPTPAY_ID;
-  if (!promptpayId) {
+  if (!isPaysoConfigured()) {
     return NextResponse.json(
       { error: "ระบบชำระเงินยังไม่พร้อมใช้งาน ติดต่อแอดมิน" },
       { status: 503 }
     );
   }
+  if (!user.email) {
+    return NextResponse.json({ error: "บัญชีนี้ไม่มีอีเมล ชำระเงินไม่ได้" }, { status: 400 });
+  }
 
-  const ref = crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase();
+  const db = getDb();
+  let payment: typeof payments.$inferSelect | undefined;
+  const ref = newPaysoRef();
   try {
-    const [payment] = await getDb()
+    [payment] = await db
       .insert(payments)
       .values({
         userId: user.id,
@@ -62,10 +66,27 @@ export async function POST(req: NextRequest) {
         promptpayRef: ref,
       })
       .returning();
-
-    const qrDataUrl = await createPaymentQrDataUrl(promptpayId, pack.priceBaht, ref);
-    return NextResponse.json({ paymentId: payment.id, ref, qrDataUrl, amount: pack.priceBaht, coins: pack.coins });
   } catch {
-    return NextResponse.json({ error: "สร้างรายการชำระเงินไม่สำเร็จ" }, { status: 500 });
+    return NextResponse.json({ error: "สร้างรายการชำระเงินไม่สำเร็จ ลองใหม่อีกครั้ง" }, { status: 500 });
   }
+
+  const qr = await createPromptPayQr({
+    referenceNo: ref,
+    amountBaht: pack.priceBaht,
+    customerEmail: user.email,
+    detail: `Coin ${pack.coins}`,
+  });
+  if (!qr) {
+    // ขอ QR ไม่สำเร็จ -> ปิดรายการทิ้ง ไม่ให้ค้าง pending นับโควตา
+    await db.update(payments).set({ status: "rejected" }).where(eq(payments.id, payment.id));
+    return NextResponse.json({ error: "สร้าง QR ไม่สำเร็จ ลองใหม่อีกครั้ง" }, { status: 502 });
+  }
+  return NextResponse.json({
+    paymentId: payment.id,
+    ref,
+    qrDataUrl: qr.qrDataUrl,
+    amount: pack.priceBaht,
+    coins: pack.coins,
+    expiresAt: qr.expiresAt ?? new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+  });
 }

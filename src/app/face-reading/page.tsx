@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Camera, Eye, ImageUp, RotateCcw, ScanFace, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { handleCoinError, featureCostLabel } from "@/lib/coin-client";
+import { handleCoinError } from "@/lib/coin-client";
+import { Cost } from "@/lib/pricing-client";
 
 type PartKey = "face" | "eyes" | "mouth" | "eyebrows";
 
@@ -274,7 +275,7 @@ export default function FaceReadingPage() {
           )}
           {stage === "preview" && (
             <p className="text-center text-xs text-muted-foreground">
-              ใช้ {featureCostLabel("face-reading")} · ต้องเข้าสู่ระบบ
+              ใช้ <Cost feature="face-reading" unit /> · ต้องเข้าสู่ระบบ
             </p>
           )}
           {stage === "done" && (

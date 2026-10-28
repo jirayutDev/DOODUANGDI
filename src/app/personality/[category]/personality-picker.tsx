@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { handleCoinError, featureCostLabel, type CoinApiError } from "@/lib/coin-client";
+import { handleCoinError, type CoinApiError } from "@/lib/coin-client";
+import { Cost } from "@/lib/pricing-client";
 
 interface PersonalityMeta {
   title: string;
@@ -139,7 +140,7 @@ export function PersonalityPicker({
             })}
           </div>
           <p className="text-xs text-muted-foreground">
-            เปิดดูแต่ละรายการใช้ {featureCostLabel("personality")} (เปิดซ้ำไม่คิดเพิ่ม) · ต้องเข้าสู่ระบบ
+            เปิดดูแต่ละรายการใช้ <Cost feature="personality" unit /> (เปิดซ้ำไม่คิดเพิ่ม) · ต้องเข้าสู่ระบบ
           </p>
         </div>
 

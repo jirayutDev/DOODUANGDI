@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getDailyCard } from "@/lib/tarot-data";
-import { FEATURE_COSTS } from "@/lib/coin-config";
+import { Cost } from "@/lib/pricing-client";
 
 const ASKS = ["คนคุยจะชัดเจนไหม", "สอบติดไหม", "ย้ายงานดีไหม", "เดือนนี้เงินเข้าไหม"];
 
@@ -160,7 +160,7 @@ export default function HomePage() {
               เปิดได้ไพ่ 8 ไม้เท้า ข่าวมาเร็วกว่าที่คิดเลย ช่วงกลางเดือนลองส่งใบสมัครที่ลังเลอยู่ดูนะ
             </p>
             <Link href="/chat" className="inline-flex min-h-10 items-center self-start font-semibold text-primary">
-              เริ่มคุย ข้อละ {FEATURE_COSTS.chat.cost} coin <span aria-hidden="true">&nbsp;›</span>
+              เริ่มคุย ข้อละ <Cost feature="chat" /> coin <span aria-hidden="true">&nbsp;›</span>
             </Link>
           </div>
         </section>

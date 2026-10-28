@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { BirthProfile } from "@/lib/astrology";
 import type { TarotCard } from "@/lib/tarot-data";
-import { FEATURE_COSTS } from "@/lib/coin-config";
+import { Cost } from "@/lib/pricing-client";
 import { handleCoinError } from "@/lib/coin-client";
 
 const PROFILE_KEY = "ommu:birth-profile";
@@ -95,7 +95,7 @@ function ChatPageInner() {
           <p className="text-sm text-muted-foreground">ห้องสนทนา</p>
           <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">คุยกับน้องมู</h1>
           <p className="text-sm text-muted-foreground">
-            ตอบจากวันเกิดของเธอ · ถามข้อละ {FEATURE_COSTS.chat.cost} coin
+            ตอบจากวันเกิดของเธอ · ถามข้อละ <Cost feature="chat" /> coin
           </p>
 
           <div
@@ -194,7 +194,7 @@ function ChatPageInner() {
             </div>
           )}
           <p className="text-center text-[16px] text-muted-foreground">
-            ถามน้องมู 1 ข้อ ใช้ {FEATURE_COSTS.chat.cost} coin · ต้องเข้าสู่ระบบ
+            ถามน้องมู 1 ข้อ ใช้ <Cost feature="chat" /> coin · ต้องเข้าสู่ระบบ
           </p>
         </div>
 
