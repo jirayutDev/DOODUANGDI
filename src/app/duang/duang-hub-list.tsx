@@ -2,7 +2,25 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { DIVINATION_GROUPS } from "@/lib/divination-categories";
+import { DIVINATION_GROUPS, categoryPrice, type DivinationCategory } from "@/lib/divination-categories";
+import { Cost } from "@/lib/pricing-client";
+
+function PriceBadge({ cat }: { cat: DivinationCategory }) {
+  const price = categoryPrice(cat);
+  if (!price) return null;
+  if (price.kind === "free" || price.kind === "free-draw") {
+    return (
+      <span className="shrink-0 rounded-full border border-primary bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary">
+        {price.kind === "free" ? "ฟรี" : "เปิดไพ่ฟรี"}
+      </span>
+    );
+  }
+  return (
+    <span className="shrink-0 rounded-full border border-line-soft px-2.5 py-0.5 text-xs text-soft-text">
+      <Cost feature={price.feature} unit />
+    </span>
+  );
+}
 
 export function DuangHubList() {
   const [query, setQuery] = useState("");
@@ -52,6 +70,7 @@ export function DuangHubList() {
                     เร็วๆ นี้
                   </span>
                 )}
+                <PriceBadge cat={cat} />
                 <span
                   className={
                     "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold " +

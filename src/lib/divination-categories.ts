@@ -1,3 +1,5 @@
+import type { FeatureKey } from "@/lib/coin-config";
+
 // รวม "ทุกศาสตร์" ที่แบรนด์จะค่อยๆ เปิดให้บริการ — เขียนคำอธิบายเองในโทนน้องมู/ดูดวงดิ
 // ไม่ได้ copy จากเว็บอื่น และจัดกลุ่มใหม่ตามวิธีที่แพลตฟอร์มนี้ให้บริการจริง (AI ตอบเองได้ vs ต้องหาหมอดูจริง)
 export type DivinationMode = "ai" | "mor_du";
@@ -114,3 +116,35 @@ export const DIVINATION_GROUPS: DivinationGroup[] = [
 export const ALL_DIVINATION_CATEGORIES: DivinationCategory[] = DIVINATION_GROUPS.flatMap(
   (g) => g.categories
 );
+
+// ป้ายราคาที่แสดงในสารบัญศาสตร์: ฟรี / เปิดไพ่ฟรี / ใช้กี่ coin (ค่า coin จริงมาจากหน้าตั้งราคา)
+// ฟรีเฉพาะดวงรายวัน/สัปดาห์/เดือน ศาสตร์อื่นต้องเข้าสู่ระบบและใช้ coin; หมอดูจริงคิดราคาตามหมอดู จึงไม่ขึ้นป้าย
+export type CategoryPrice =
+  | { kind: "free" }
+  | { kind: "free-draw" } // เปิดไพ่ได้ฟรี แต่คำสรุปจาก AI ใช้ coin
+  | { kind: "coin"; feature: FeatureKey };
+
+const FREE_SLUGS = new Set(["daily", "weekly", "monthly", "tarot-daily"]);
+const FREE_DRAW_SLUGS = new Set(["tarot-timeline", "tarot-love", "tarot-celtic"]);
+const FEATURE_BY_SLUG: Record<string, FeatureKey> = {
+  "love-match": "love-match",
+  "face-reading": "face-reading",
+  "sian-si": "sian-si",
+  dice: "dice",
+  "phone-numerology": "numerology",
+  "plate-numerology": "numerology",
+  "birthday-personality": "personality",
+  "zodiac-personality": "personality",
+  "nakshatra-personality": "personality",
+  dream: "chat",
+};
+
+export function categoryPrice(cat: DivinationCategory): CategoryPrice | null {
+  if (cat.mode !== "ai" || cat.status !== "live") return null;
+  if (FREE_SLUGS.has(cat.slug)) return { kind: "free" };
+  if (FREE_DRAW_SLUGS.has(cat.slug)) return { kind: "free-draw" };
+  const feature = FEATURE_BY_SLUG[cat.slug];
+  if (feature) return { kind: "coin", feature };
+  // ที่เหลือทั้งหมดเป็นหน้า /duang/<หัวข้อ> ซึ่งคิดเป็น "ดูดวงเฉพาะเรื่อง"
+  return cat.href.startsWith("/duang/") ? { kind: "coin", feature: "topic-reading" } : null;
+}

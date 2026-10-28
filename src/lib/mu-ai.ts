@@ -79,7 +79,7 @@ interface ChatMsg {
   content: string | ChatContentPart[];
 }
 
-async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: number): Promise<string> {
+async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: number, timeoutMs: number): Promise<string> {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -96,6 +96,8 @@ async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: num
       max_tokens: maxTokens,
       messages,
     }),
+    // ตัดโมเดลที่ช้า/ค้าง ไม่ให้ฟังก์ชันบนโฮสต์รอจนถูกฆ่า (ถ้าถูกฆ่าหลังหัก coin แล้ว จะไม่มีโอกาสคืน coin)
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!res.ok) throw new Error(`OpenRouter API error (${model}): ${res.status}`);
@@ -120,12 +122,24 @@ async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: num
 
 // ไล่ตาม OPENROUTER_MODEL ก่อน แล้วค่อยลอง OPENROUTER_FALLBACK_MODELS ทีละตัวถ้าตัวหลักพังหรือโดน rate limit
 // คืนค่า null เมื่อไม่มี API key หรือทุกโมเดลในสายพังหมด ให้ผู้เรียกไป fallback เป็น rule-based เอง
-async function chatViaOpenRouter(messages: ChatMsg[], maxTokens = 700): Promise<string | null> {
+// validate (ไม่บังคับ): ตรวจว่าคำตอบครบตามรูปแบบ ถ้าไม่ผ่านถือว่าขาดตอน ให้ลองโมเดลถัดไปแทนที่จะส่งคำตอบขาดๆ ให้ผู้ใช้
+// deadlineMs = เวลารวมสูงสุดทั้งสาย (ค่าเริ่มต้น 22 วินาที เผื่อฟังก์ชันฝั่งผู้ใช้ที่ต้องเหลือเวลาคืน coin) งานเบื้องหลังอย่าง cron ส่งค่ามากกว่านี้ได้
+async function chatViaOpenRouter(
+  messages: ChatMsg[],
+  maxTokens = 700,
+  validate?: (text: string) => boolean,
+  deadlineMs = 22_000
+): Promise<string | null> {
   if (!process.env.OPENROUTER_API_KEY) return null;
 
+  const startedAt = Date.now();
   for (const model of getModelChain()) {
+    const remaining = deadlineMs - (Date.now() - startedAt);
+    if (remaining < 2_500) break; // เหลือเวลาไม่พอรอโมเดลถัดไป
     try {
-      return await callOpenRouter(model, messages, maxTokens);
+      const text = await callOpenRouter(model, messages, maxTokens, remaining);
+      if (validate && !validate(text)) throw new Error(`Incomplete response (${model})`);
+      return text;
     } catch {
       // ลองโมเดลถัดไปในสาย
     }
@@ -199,15 +213,41 @@ function formatSpreadForPrompt({ spreadName, question, results }: SpreadSummaryI
   return `รูปแบบการวางไพ่: ${untrusted(spreadName)}\n\n${cardLines}\n\n${questionLine}`;
 }
 
-// คืน null เมื่อ AI ใช้ไม่ได้ทั้งหมด
+// สรุปต้องมี 2 ส่วนครบและจบสมบูรณ์: "สรุปภาพรวม" + "คำแนะนำเบื้องต้น" อย่างน้อย 2 ข้อ ข้อสุดท้ายต้องไม่ขาดกลางประโยค
+export function isCompleteSpreadSummary(text: string): boolean {
+  const t = text.trim();
+  const iSummary = t.indexOf("สรุปภาพรวม");
+  const iAdvice = t.indexOf("คำแนะนำ", iSummary + 5);
+  if (iSummary < 0 || iAdvice < 0 || iSummary > iAdvice) return false;
+  if (iAdvice - iSummary < 60) return false; // ส่วนสรุปสั้นเกินไป
+  const adviceLines = t
+    .slice(iAdvice)
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /^(ข้อ\s*)?(\d+[.)]?|[-•])\s*\S/.test(l));
+  if (adviceLines.length < 2) return false;
+  const last = adviceLines[adviceLines.length - 1];
+  if (last.replace(/^(ข้อ\s*)?(\d+[.)]?|[-•])\s*/, "").length < 15) return false;
+  // ลงท้ายด้วยคำเชื่อม/เครื่องหมายค้าง = ถูกตัดกลางประโยค
+  return !/(และ|หรือ|แต่|ที่|ซึ่ง|เพราะ|ว่า|ให้|ก็|กับ|ของ|ใน|จะ|ได้|,|:|;|-|\()$/.test(t);
+}
+
+// คืน null เมื่อ AI ใช้ไม่ได้ทั้งหมด (หรือคำตอบขาดตอนทุกโมเดล)
 export async function generateSpreadSummary(input: SpreadSummaryInput): Promise<string | null> {
+  const hasQuestion = !!input.question;
   const system = [
     BASE_SYSTEM_PROMPT,
-    "หน้าที่ของคุณตอนนี้คือสรุปไพ่ทั้งชุดที่เปิดออกมาให้เป็นเรื่องราวเดียวกัน ไม่ใช่อธิบายทีละใบแยกกันยาวๆ",
-    "เชื่อมโยงความหมายของแต่ละตำแหน่งเข้าด้วยกันให้เห็นภาพรวม เช่น อดีตนำมาสู่ปัจจุบันอย่างไร แล้วส่งผลต่ออนาคตอย่างไร",
-    "สำคัญมาก: ไม่ว่าไพ่จะมีกี่ใบ (แม้จะเป็นเซลติกครอส 10 ใบ) ให้ตอบสั้นกระชับไม่เกิน 8 ประโยครวมทั้งหมด ห้ามอธิบายทีละตำแหน่งแบบแยกย่อหน้า ให้เกลาเป็นเรื่องเดียวสั้นๆ แทน",
-    "ต้องเขียนให้จบประโยคสมบูรณ์เสมอ ห้ามตัดจบกลางประโยค ถ้าเนื้อหาจะยาวเกินให้ตัดตอนจบให้กระชับขึ้นแทนที่จะพูดถึงทุกตำแหน่งครบ",
-    "จบด้วยคำแนะนำสั้นๆ หรือชวนไปคุยกับหมอดูตัวจริงถ้าอยากได้คำตอบลึกกว่านี้",
+    "หน้าที่ของคุณตอนนี้คือสรุปไพ่ทั้งชุดที่เปิดออกมาเป็นเรื่องราวเดียวกัน แล้วให้คำแนะนำเบื้องต้น ไม่ใช่อธิบายทีละใบ และไม่ใช่เอาความหมายของแต่ละใบมาต่อกัน",
+    hasQuestion
+      ? "ผู้ถามมีคำถามเฉพาะ ต้องตอบคำถามนั้นโดยตรงตั้งแต่ประโยคแรกของส่วนสรุป โดยตีความไพ่ทั้งชุด (ตำแหน่งและกลับหัว/ตั้งตรง) ให้เข้ากับเรื่องที่ถาม ไม่ตอบกว้างๆ ที่ใช้กับใครก็ได้"
+      : "ผู้ถามไม่ได้ระบุคำถาม ให้สรุปภาพรวมของสถานการณ์ปัจจุบันจากไพ่ทั้งชุด",
+    "เชื่อมโยงตำแหน่งต่างๆ เข้าด้วยกัน เช่น อดีตนำมาสู่ปัจจุบันอย่างไร อิทธิพลรอบตัวหนุนหรือขวางอย่างไร และแนวโน้มต่อไปเป็นอย่างไร",
+    "รูปแบบคำตอบ (ข้อความธรรมดา ห้ามใช้ markdown ห้ามใช้เครื่องหมาย ** หรือ #) ต้องมีสองส่วนตามนี้เป๊ะ:",
+    "บรรทัดแรกเขียนว่า สรุปภาพรวม แล้วขึ้นบรรทัดใหม่ ตามด้วยสรุป 3-5 ประโยค",
+    "เว้นหนึ่งบรรทัด แล้วเขียนบรรทัดว่า คำแนะนำเบื้องต้น แล้วขึ้นบรรทัดใหม่ ตามด้วยข้อแนะนำที่ทำได้จริง 3 ข้อ ขึ้นต้นด้วย 1. 2. 3. ข้อละ 1 ประโยคสั้นๆ",
+    "ความยาวรวมไม่เกินประมาณ 12 ประโยค ไม่ว่าไพ่จะมีกี่ใบ (แม้เซลติกครอส 10 ใบ) ถ้าเนื้อหาจะยาวเกินให้เลือกเฉพาะใจความสำคัญ",
+    "สำคัญมาก: ต้องเขียนให้ครบทั้งสองส่วนและจบประโยคสมบูรณ์เสมอ ห้ามตัดจบกลางประโยค",
+    "ข้อสุดท้ายของคำแนะนำอาจชวนไปคุยกับน้องมูต่อ หรือปรึกษาหมอดูตัวจริงถ้าอยากได้คำตอบลึกกว่านี้",
   ].join("\n");
 
   return chatViaOpenRouter(
@@ -215,7 +255,8 @@ export async function generateSpreadSummary(input: SpreadSummaryInput): Promise<
       { role: "system", content: system },
       { role: "user", content: formatSpreadForPrompt(input) },
     ],
-    1400
+    2000,
+    isCompleteSpreadSummary
   );
 }
 
@@ -258,7 +299,9 @@ export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Prom
       { role: "system", content: system },
       { role: "user", content: `ขอดูดวงราศี${input.sign} ${input.periodName}หน่อย` },
     ],
-    800
+    800,
+    undefined,
+    55_000 // งานสร้างล่วงหน้า (cron/แอดมิน) รันได้ถึง 60 วินาที
   );
   // กันโมเดลหลุดใส่ markdown มา
   return reply?.replace(/\*\*|^#+\s*/gm, "").trim() || null;
@@ -386,9 +429,12 @@ export async function generateFaceReading(imageDataUrl: string): Promise<FaceRea
     },
   ];
 
+  const startedAt = Date.now();
   for (const model of getVisionModelChain()) {
+    const remaining = 24_000 - (Date.now() - startedAt); // เหลือเวลาให้ route คืน coin ถ้าล้มเหลว
+    if (remaining < 2_500) break;
     try {
-      const text = await callOpenRouter(model, messages, 1600);
+      const text = await callOpenRouter(model, messages, 1600, remaining);
       const outcome = normalizeFaceReading(extractJson(text));
       if (outcome) return outcome;
     } catch {

@@ -1,5 +1,6 @@
 // app/layout.tsx — โหลดฟอนต์ของธีมราตรีทอง และเปิดโหมดราตรีเป็นค่าเริ่มต้น
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import { Mali } from "next/font/google";
 import "./globals.css";
 import { BottomBar, SiteHeader } from "@/components/site-header";
@@ -40,9 +41,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="mx-auto flex max-w-[1120px] flex-wrap justify-between gap-5 border-t border-border px-[18px] pt-[22px] pb-10 md:px-10">
             <span>© 2569 ดูดวงดิ · ดูเพื่อเป็นกำลังใจ ใช้วิจารณญาณประกอบนะ</span>
             <span className="flex gap-5">
-              <a href="#">ติดต่อเรา</a>
-              <a href="#">เงื่อนไข</a>
-              <a href="#">ความเป็นส่วนตัว</a>
+              <Link href="/contact">ติดต่อเรา</Link>
+              <Link href="/terms">เงื่อนไข</Link>
+              <Link href="/privacy">ความเป็นส่วนตัว</Link>
             </span>
           </div>
         </footer>
