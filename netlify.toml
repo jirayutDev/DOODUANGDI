@@ -7,5 +7,6 @@
 [build.environment]
   SECRETS_SCAN_OMIT_PATHS = ".next/cache/**,.netlify/.next/cache/**"
 # ตัวแปร NEXT_PUBLIC_* ถูก Next.js ฝังลงโค้ดฝั่งเว็บโดยตั้งใจ (เป็นค่าสาธารณะ: URL ของ Supabase, publishable key, URL เว็บ)
-# ตัวสแกนจึงเจอค่าเหล่านี้ในผลลัพธ์ build เสมอ ยกเว้นเฉพาะ 3 ตัวนี้ ห้ามเอาตัวแปรลับมาใส่ที่นี่
-SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,NEXT_PUBLIC_SITE_URL,SMSKUB_SENDER"
+# ตัวสแกนจึงเจอค่าเหล่านี้ในผลลัพธ์ build เสมอ รวมถึงตัวแปรตั้งค่าที่ไม่ใช่ความลับซึ่งค่าไปตรงกับข้อความในโค้ด/ตัวอย่าง env
+# (ชื่อผู้ส่ง SMS, URL และชื่อโมเดล AI, เปอร์เซ็นต์ค่าบริการ) ห้ามเอาตัวแปรที่เป็นความลับจริง (คีย์ รหัสผ่าน secret) มาใส่ที่นี่
+SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,NEXT_PUBLIC_SITE_URL,SMSKUB_SENDER,AI_BASE_URL,AI_MODEL,AI_FALLBACK_MODELS,AI_VISION_BASE_URL,AI_VISION_MODEL,AI_VISION_FALLBACK_MODELS,OPENROUTER_MODEL,OPENROUTER_FALLBACK_MODELS,OPENROUTER_VISION_MODEL,OPENROUTER_VISION_FALLBACK_MODELS,MORDU_COMMISSION_PERCENT,PAYSO_BASE_URL"
