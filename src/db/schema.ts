@@ -20,7 +20,15 @@ export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
 export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
 export const muBookSourceEnum = pgEnum("mu_book_source", ["ai", "mor_du"]);
 export const morDuStatusEnum = pgEnum("mor_du_status", ["pending", "approved", "rejected", "suspended"]);
-export const paymentPurposeEnum = pgEnum("payment_purpose", ["ai_plus", "mu_club", "coin_topup"]);
+export const paymentPurposeEnum = pgEnum("payment_purpose", ["ai_plus", "mu_club", "coin_topup", "booking"]);
+export const bookingStatusEnum = pgEnum("booking_status", [
+  "requested", // ลูกค้าขอคิว รอหมอดูตอบรับ
+  "accepted", // หมอดูรับแล้ว รอลูกค้าจ่ายเงิน
+  "declined", // หมอดูปฏิเสธ
+  "paid", // จ่ายแล้ว (มีลิงก์ Google Meet เมื่อสร้างสำเร็จ)
+  "completed", // หมอดูกดเสร็จสิ้น รายได้เข้ายอดของหมอดูแล้ว
+  "cancelled", // ยกเลิกก่อนจ่ายเงิน
+]);
 export const paymentStatusEnum = pgEnum("payment_status", [
   "pending", // สร้าง QR แล้ว รอผู้ใช้จ่าย
   "awaiting_confirmation", // ผู้ใช้กด "แจ้งชำระเงินแล้ว"
@@ -99,7 +107,8 @@ export const morDus = pgTable("mor_dus", {
   bio: text("bio").notNull(),
   specialties: text("specialties").notNull(), // คั่นด้วยจุลภาค เช่น "ไพ่ยิปซี, โหราศาสตร์ไทย"
   priceQuestion: integer("price_question").notNull(), // บาทต่อ 1 คำถาม (ถามเป็นข้อ)
-  priceLiveMinute: integer("price_live_minute"), // บาทต่อนาที (แชทสด/โทร) — ไม่บังคับ
+  priceLiveMinute: integer("price_live_minute"), // บาทต่อนาที (แชทสด/โทร/วิดีโอ) — ไม่บังคับ ต้องมีถึงจะรับจองคิวได้
+  payoutInfo: text("payout_info"), // ช่องทางรับเงินของหมอดู (ธนาคาร/พร้อมเพย์) แอดมินเห็นเพื่อโอนให้ ห้ามแสดงต่อสาธารณะ
   status: morDuStatusEnum("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -119,7 +128,47 @@ export const payments = pgTable("payments", {
   notifiedAt: timestamp("notified_at", { withTimezone: true }),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   slipTransRef: text("slip_trans_ref").unique(), // เลขอ้างอิงธุรกรรมจากสลิปที่ Slip2Go ยืนยัน กันใช้สลิปซ้ำ
+  bookingId: uuid("booking_id"), // เฉพาะ purpose = booking: การจองคิวหมอดูที่ชำระ
 });
+
+// การจองคิวปรึกษาหมอดู (ลูกค้าขอคิว -> หมอดูรับ -> ลูกค้าจ่าย -> ระบบสร้างลิงก์ Google Meet -> หมอดูกดเสร็จสิ้น)
+export const bookings = pgTable(
+  "bookings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    customerId: uuid("customer_id").notNull(),
+    morDuId: uuid("mor_du_id").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    durationMin: integer("duration_min").notNull(),
+    topic: text("topic").notNull(),
+    status: bookingStatusEnum("status").notNull().default("requested"),
+    priceBaht: integer("price_baht").notNull(), // ราคาที่ลูกค้าจ่าย (ราคาต่อนาทีของหมอดู ณ ตอนขอ x จำนวนนาที)
+    commissionBaht: integer("commission_baht").notNull(), // ส่วนที่เว็บเก็บ ที่เหลือเป็นรายได้หมอดู
+    meetUrl: text("meet_url"),
+    meetEventId: text("meet_event_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [index("bookings_mor_du_idx").on(t.morDuId, t.startsAt), index("bookings_customer_idx").on(t.customerId, t.createdAt.desc())]
+);
+
+// สมุดบัญชีรายได้หมอดู: บวก = รายได้จากการจอง, ลบ = เว็บโอนเงินให้แล้ว (kind payout)
+export const morDuLedger = pgTable(
+  "mor_du_ledger",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    morDuId: uuid("mor_du_id").notNull(),
+    bookingId: uuid("booking_id"),
+    amountBaht: integer("amount_baht").notNull(),
+    kind: text("kind").notNull(), // earning | payout | adjust
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("mor_du_ledger_idx").on(t.morDuId, t.createdAt.desc()), uniqueIndex("mor_du_ledger_earning_uniq").on(t.bookingId, t.kind)]
+);
 
 // สถานะสมาชิกปัจจุบันของผู้ใช้ (1 คนมีได้ 1 แพ็กเกจที่ active ในแต่ละช่วงเวลา)
 export const memberships = pgTable("memberships", {

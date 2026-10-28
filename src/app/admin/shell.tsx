@@ -1,19 +1,18 @@
 import Link from "next/link";
-import { adminBase } from "@/lib/admin-path";
+import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/admin/ui";
 
-// เปลือกหน้าแอดมินย่อย: ปุ่มกลับเมนู + หัวข้อ
-export function AdminShell({ title, children }: { title: string; children: React.ReactNode }) {
+// เปลือกหน้าย่อยของหลังบ้าน: หัวหน้า (เมนูด้านข้างอยู่ที่ admin/layout.tsx)
+export function AdminShell({ title, description, actions, children }: { title: string; description?: string; actions?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="px-[18px] pb-10 pt-4 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
-      <Link href={adminBase()} className="text-sm text-muted-foreground hover:text-foreground">
-        ← เมนูแอดมิน
-      </Link>
-      <h1 className="mb-6 mt-2 font-display text-3xl text-foreground">{title}</h1>
+    <>
+      <PageHeader title={title} description={description} actions={actions} />
       {children}
-    </div>
+    </>
   );
 }
 
+// แท็บกรองสถานะ: เปลี่ยนตัวกรองแล้วกลับไปหน้า 1 เสมอ (ไม่ส่ง page ไปกับลิงก์)
 export function FilterTabs({
   base,
   param,
@@ -23,19 +22,23 @@ export function FilterTabs({
   base: string;
   param: string;
   current: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; count?: number }[];
 }) {
   return (
-    <div className="mb-5 flex flex-wrap gap-2">
+    <div role="tablist" className="mb-4 flex flex-wrap gap-2">
       {options.map((o) => (
         <Link
           key={o.value}
+          role="tab"
+          aria-selected={current === o.value}
           href={`${base}?${param}=${o.value}`}
-          className={`rounded-full border px-3.5 py-1 text-sm ${
-            current === o.value ? "border-primary bg-primary text-ink" : "border-line-soft text-soft-text hover:border-primary"
-          }`}
+          className={cn(
+            "rounded-full border px-3.5 py-1 text-sm",
+            current === o.value ? "border-primary bg-primary font-bold text-primary-foreground" : "border-border text-soft-text hover:border-primary"
+          )}
         >
           {o.label}
+          {o.count !== undefined && <span className="ml-1.5 opacity-80">{o.count.toLocaleString("th-TH")}</span>}
         </Link>
       ))}
     </div>

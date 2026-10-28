@@ -16,7 +16,14 @@ function getClient() {
     );
   }
   if (!globalForDb.pgClient) {
-    globalForDb.pgClient = postgres(connectionString, { prepare: false });
+    // serverless: แต่ละ instance เปิดแค่ 1 connection (หลาย instance รวมกันจะได้ไม่เกินโควตาของ pooler Supabase)
+    // ถ้าเจอ EMAXCONNSESSION ให้ใช้ DATABASE_URL แบบ Transaction pooler (พอร์ต 6543) ไม่ใช่ Session mode (5432)
+    globalForDb.pgClient = postgres(connectionString, {
+      prepare: false,
+      max: process.env.NODE_ENV === "production" ? 1 : 3,
+      idle_timeout: 20,
+      connect_timeout: 15,
+    });
   }
   return globalForDb.pgClient;
 }

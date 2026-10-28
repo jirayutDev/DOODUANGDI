@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
 export interface MorDuItem {
   userId: string;
@@ -78,9 +79,12 @@ export function MorDuList({ list }: { list: MorDuItem[] }) {
                 ถามเป็นข้อ ฿{m.priceQuestion}
               </span>
               {m.priceLiveMinute ? (
-                <span className="flex min-h-[50px] flex-1 items-center justify-center rounded-[14px] bg-secondary px-3 text-[16px] font-semibold">
-                  แชทสด ฿{m.priceLiveMinute}/นาที
-                </span>
+                <Link
+                  href={`/mor-du/${m.userId}/book`}
+                  className="flex min-h-[50px] flex-1 items-center justify-center rounded-[14px] bg-secondary px-3 text-center text-[16px] font-semibold text-foreground no-underline hover:bg-primary hover:text-primary-foreground"
+                >
+                  ขอคิววิดีโอ ฿{m.priceLiveMinute}/นาที
+                </Link>
               ) : null}
             </div>
           </article>

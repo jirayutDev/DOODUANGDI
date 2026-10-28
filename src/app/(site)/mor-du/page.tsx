@@ -23,6 +23,14 @@ export default async function MorDuListPage() {
       <p className="mt-2.5 max-w-[560px] text-soft-text">
         ทุกคนผ่านการตรวจสอบตามมาตรฐาน Safe Mu
       </p>
+      <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+        <Link href="/mor-du/bookings" className="text-primary underline underline-offset-4">
+          การจองคิวของฉัน
+        </Link>
+        <Link href="/mor-du/dashboard" className="text-muted-foreground underline underline-offset-4">
+          สำหรับหมอดู: หลังบ้านหมอดู
+        </Link>
+      </p>
 
       {list.length === 0 ? (
         <div className="mt-[26px] rounded-2xl border border-line-soft bg-card py-10 text-center text-sm text-muted-foreground">

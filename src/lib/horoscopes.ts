@@ -159,6 +159,34 @@ export function currentGenerationPeriodKey(kind: HoroscopeKind): string {
   return getPeriod(kind, new Date(Date.now() + 30 * 60 * 1000)).key;
 }
 
+// สร้างดวง 1 ราศีของช่วงปัจจุบัน (1 คำขอ = 1 การเรียก AI) — ใช้กับโฮสต์ที่จำกัดเวลาฟังก์ชันสั้น แล้วให้ตัวเรียกวนทีละราศีเอง
+// regenerate = สร้างข้อความใหม่แล้วเขียนทับของเดิม (ถ้า AI ล้มเหลวของเดิมยังอยู่ ไม่หายไป)
+export async function generateSign(kind: HoroscopeKind, sign: string, opts: { regenerate?: boolean } = {}) {
+  const period = getPeriod(kind, new Date(Date.now() + 30 * 60 * 1000));
+  if (!opts.regenerate) {
+    if (await findOne(kind, period.key, sign)) return { period: period.key, sign, status: "skipped" as const };
+    const content = await ensureHoroscope(kind, sign, period);
+    return { period: period.key, sign, status: content ? ("created" as const) : ("failed" as const) };
+  }
+
+  const content = await generateZodiacHoroscope({
+    sign,
+    periodName: period.name,
+    periodLabel: period.label,
+    sentences: period.sentences,
+    skyContext: skyContextFor(kind, period.key),
+  });
+  if (!content) return { period: period.key, sign, status: "failed" as const };
+  await getDb()
+    .insert(scheduledHoroscopes)
+    .values({ kind, periodKey: period.key, sign, content })
+    .onConflictDoUpdate({
+      target: [scheduledHoroscopes.kind, scheduledHoroscopes.periodKey, scheduledHoroscopes.sign],
+      set: { content, createdAt: new Date() },
+    });
+  return { period: period.key, sign, status: "created" as const };
+}
+
 // regenerate = ลบของช่วงนี้ทิ้งแล้วสร้างใหม่ (แอดมินกดสร้างใหม่เมื่อดวงที่ได้เพี้ยน)
 export async function generateAllSigns(kind: HoroscopeKind, opts: { regenerate?: boolean } = {}) {
   // คิดจากเวลา +30 นาที เผื่อ scheduler ยิงก่อนเที่ยงคืนเล็กน้อย จะได้เติมของวัน/สัปดาห์/เดือนใหม่ถูกต้อง
