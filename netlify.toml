@@ -6,3 +6,6 @@
 # จึงยกเว้นเฉพาะโฟลเดอร์แคชนี้ (ไม่ปิดการสแกนทั้งหมด จะได้ยังจับกรณีค่าลับหลุดเข้าโค้ดหรือหน้าเว็บจริง)
 [build.environment]
   SECRETS_SCAN_OMIT_PATHS = ".next/cache/**,.netlify/.next/cache/**"
+# ตัวแปร NEXT_PUBLIC_* ถูก Next.js ฝังลงโค้ดฝั่งเว็บโดยตั้งใจ (เป็นค่าสาธารณะ: URL ของ Supabase, publishable key, URL เว็บ)
+# ตัวสแกนจึงเจอค่าเหล่านี้ในผลลัพธ์ build เสมอ ยกเว้นเฉพาะ 3 ตัวนี้ ห้ามเอาตัวแปรลับมาใส่ที่นี่
+SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,NEXT_PUBLIC_SITE_URL"
