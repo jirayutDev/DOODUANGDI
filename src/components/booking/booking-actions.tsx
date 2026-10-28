@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { handleCoinError } from "@/lib/coin-client";
 
 export interface BookingLite {
   id: string;
   status: string;
   startsAt: string;
   meetUrl: string | null;
-  priceBaht: number;
+  priceCoins: number;
 }
 
 async function post(url: string, body?: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {
@@ -42,63 +43,38 @@ function useAction() {
   return { busy, run };
 }
 
-// ปุ่มฝั่งลูกค้า: ยกเลิกคิวที่ยังไม่จ่าย / จ่ายเงินเมื่อหมอดูรับแล้ว (แสดง QR และเช็กผลทุก 5 วินาที)
+// ปุ่มฝั่งลูกค้า: ยกเลิกคิวที่ยังไม่จ่าย / ชำระด้วย coin เมื่อหมอดูรับแล้ว (หัก coin จากกระเป๋าทันที)
 export function CustomerBookingActions({ booking }: { booking: BookingLite }) {
   const router = useRouter();
   const { busy, run } = useAction();
-  const [qr, setQr] = useState<{ paymentId: string; qrDataUrl: string; expiresAt: string } | null>(null);
-  const [paid, setPaid] = useState(false);
 
-  useEffect(() => {
-    if (!qr || paid) return;
-    const deadline = new Date(qr.expiresAt).getTime() + 30_000;
-    const timer = setInterval(async () => {
-      if (Date.now() > deadline) {
-        clearInterval(timer);
-        return;
+  async function pay() {
+    if (!window.confirm(`ชำระด้วย ${booking.priceCoins.toLocaleString("th-TH")} coin? ระบบหัก coin จากกระเป๋าของคุณทันที`)) return;
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}/pay`, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok) {
+        // coin ไม่พอ -> กล่องแจ้งเตือนกลางจอพร้อมปุ่มเติม coin
+        if (handleCoinError(data as { error?: string; code?: "login_required" | "insufficient_coins" })) return;
+        throw new Error(typeof data.error === "string" ? data.error : "ชำระเงินไม่สำเร็จ");
       }
-      try {
-        const res = await fetch(`/api/payments/status?paymentId=${qr.paymentId}`);
-        if (!res.ok) return;
-        const { status } = (await res.json()) as { status: string };
-        if (status === "confirmed") {
-          clearInterval(timer);
-          setPaid(true);
-          toast.success("ชำระเงินสำเร็จ");
-          router.refresh();
-        }
-      } catch {
-        // เครือข่ายสะดุด รอรอบหน้า
-      }
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [qr, paid, router]);
+      window.dispatchEvent(new Event("coins:changed"));
+      toast.success("ชำระด้วย coin แล้ว");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "ชำระเงินไม่สำเร็จ");
+    }
+  }
 
   const canCancel = booking.status === "requested" || booking.status === "accepted";
   return (
     <div className="flex flex-col gap-3">
-      {booking.status === "accepted" && !qr && (
-        <Button
-          disabled={!!busy}
-          onClick={() =>
-            run("pay", async () => {
-              const { data } = await post(`/api/bookings/${booking.id}/pay`);
-              setQr({ paymentId: String(data.paymentId), qrDataUrl: String(data.qrDataUrl), expiresAt: String(data.expiresAt) });
-            })
-          }
-          className="h-auto min-h-[50px] rounded-[14px] text-base font-bold"
-        >
-          {busy === "pay" ? "กำลังสร้าง QR..." : `ชำระเงิน ฿${booking.priceBaht.toLocaleString("th-TH")}`}
+      {booking.status === "accepted" && (
+        <Button disabled={!!busy} onClick={() => run("pay", pay)} className="h-auto min-h-[50px] rounded-[14px] text-base font-bold">
+          {busy === "pay" ? "กำลังชำระ..." : `ชำระด้วย ${booking.priceCoins.toLocaleString("th-TH")} coin`}
         </Button>
       )}
-      {qr && !paid && (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-line-soft bg-card p-4 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qr.qrDataUrl} alt="PromptPay QR" className="size-56 rounded-lg bg-white p-2" />
-          <p className="text-sm text-soft-text">สแกนจ่ายด้วยแอปธนาคาร QR ใช้ได้ 10 นาที ชำระแล้วหน้านี้อัปเดตเอง</p>
-        </div>
-      )}
-      {canCancel && !qr && (
+      {canCancel && (
         <Button
           variant="ghost"
           disabled={!!busy}

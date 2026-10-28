@@ -20,7 +20,7 @@ export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
 export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
 export const muBookSourceEnum = pgEnum("mu_book_source", ["ai", "mor_du"]);
 export const morDuStatusEnum = pgEnum("mor_du_status", ["pending", "approved", "rejected", "suspended"]);
-export const paymentPurposeEnum = pgEnum("payment_purpose", ["ai_plus", "mu_club", "coin_topup", "booking"]);
+export const paymentPurposeEnum = pgEnum("payment_purpose", ["ai_plus", "mu_club", "coin_topup"]);
 export const bookingStatusEnum = pgEnum("booking_status", [
   "requested", // ลูกค้าขอคิว รอหมอดูตอบรับ
   "accepted", // หมอดูรับแล้ว รอลูกค้าจ่ายเงิน
@@ -106,8 +106,8 @@ export const morDus = pgTable("mor_dus", {
   displayName: text("display_name").notNull(),
   bio: text("bio").notNull(),
   specialties: text("specialties").notNull(), // คั่นด้วยจุลภาค เช่น "ไพ่ยิปซี, โหราศาสตร์ไทย"
-  priceQuestion: integer("price_question").notNull(), // บาทต่อ 1 คำถาม (ถามเป็นข้อ)
-  priceLiveMinute: integer("price_live_minute"), // บาทต่อนาที (แชทสด/โทร/วิดีโอ) — ไม่บังคับ ต้องมีถึงจะรับจองคิวได้
+  priceQuestion: integer("price_question").notNull(), // coin ต่อ 1 คำถาม (ถามเป็นข้อ)
+  priceLiveMinute: integer("price_live_minute"), // coin ต่อนาที (คิวปรึกษาวิดีโอ) — ไม่บังคับ ต้องมีถึงจะรับจองคิวได้
   payoutInfo: text("payout_info"), // ช่องทางรับเงินของหมอดู (ธนาคาร/พร้อมเพย์) แอดมินเห็นเพื่อโอนให้ ห้ามแสดงต่อสาธารณะ
   status: morDuStatusEnum("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -128,10 +128,11 @@ export const payments = pgTable("payments", {
   notifiedAt: timestamp("notified_at", { withTimezone: true }),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   slipTransRef: text("slip_trans_ref").unique(), // เลขอ้างอิงธุรกรรมจากสลิปที่ Slip2Go ยืนยัน กันใช้สลิปซ้ำ
-  bookingId: uuid("booking_id"), // เฉพาะ purpose = booking: การจองคิวหมอดูที่ชำระ
+  bonusCoins: integer("bonus_coins"), // coin โบนัสจากโปรโมชัน ณ ตอนสร้างรายการ (null = ไม่มีโปร) ให้เพิ่มเมื่อยืนยันชำระ
+  promoId: text("promo_id"), // id ของโปรที่ใช้ (อ้างอิงใน coin_transactions.ref เป็น promo:<id>)
 });
 
-// การจองคิวปรึกษาหมอดู (ลูกค้าขอคิว -> หมอดูรับ -> ลูกค้าจ่าย -> ระบบสร้างลิงก์ Google Meet -> หมอดูกดเสร็จสิ้น)
+// การจองคิวปรึกษาหมอดู (ลูกค้าขอคิว -> หมอดูรับ -> ลูกค้าจ่ายด้วย coin -> ระบบสร้างลิงก์ Google Meet -> หมอดูกดเสร็จสิ้น)
 export const bookings = pgTable(
   "bookings",
   {
@@ -143,8 +144,8 @@ export const bookings = pgTable(
     durationMin: integer("duration_min").notNull(),
     topic: text("topic").notNull(),
     status: bookingStatusEnum("status").notNull().default("requested"),
-    priceBaht: integer("price_baht").notNull(), // ราคาที่ลูกค้าจ่าย (ราคาต่อนาทีของหมอดู ณ ตอนขอ x จำนวนนาที)
-    commissionBaht: integer("commission_baht").notNull(), // ส่วนที่เว็บเก็บ ที่เหลือเป็นรายได้หมอดู
+    priceCoins: integer("price_coins").notNull(), // coin ที่ลูกค้าจ่าย (ราคาต่อนาทีของหมอดู ณ ตอนขอ x จำนวนนาที) หักจากกระเป๋าตอนกดชำระ
+    commissionCoins: integer("commission_coins").notNull(), // ส่วนที่เว็บเก็บ ที่เหลือเป็นรายได้ coin ของหมอดู
     meetUrl: text("meet_url"),
     meetEventId: text("meet_event_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -155,14 +156,14 @@ export const bookings = pgTable(
   (t) => [index("bookings_mor_du_idx").on(t.morDuId, t.startsAt), index("bookings_customer_idx").on(t.customerId, t.createdAt.desc())]
 );
 
-// สมุดบัญชีรายได้หมอดู: บวก = รายได้จากการจอง, ลบ = เว็บโอนเงินให้แล้ว (kind payout)
+// สมุดบัญชีรายได้หมอดู (หน่วย coin): บวก = รายได้จากการจอง, ลบ = เว็บโอนเงินให้แล้ว (kind payout) แปลงเป็นบาทตอนโอนตามอัตราแลกที่แอดมินตั้ง (เมนู "ตั้งราคา")
 export const morDuLedger = pgTable(
   "mor_du_ledger",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     morDuId: uuid("mor_du_id").notNull(),
     bookingId: uuid("booking_id"),
-    amountBaht: integer("amount_baht").notNull(),
+    amountCoins: integer("amount_coins").notNull(),
     kind: text("kind").notNull(), // earning | payout | adjust
     note: text("note"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

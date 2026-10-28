@@ -35,7 +35,7 @@ export default async function MyBookingsPage() {
                 <StatusBadge tone={s.tone}>{s.label}</StatusBadge>
               </div>
               <p className="mt-1 text-sm text-soft-text">
-                {fmtThaiDateTime(b.startsAt)} · {b.durationMin} นาที · ฿{b.priceBaht.toLocaleString("th-TH")}
+                {fmtThaiDateTime(b.startsAt)} · {b.durationMin} นาที · {b.priceCoins.toLocaleString("th-TH")} coin
               </p>
             </Link>
           );

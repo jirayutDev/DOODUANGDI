@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CoinIcon } from "@/components/coin-icon";
-import { FEATURE_COSTS, describeTransaction } from "@/lib/coin-config";
+import { FEATURE_COSTS, bonusFor, describeTransaction } from "@/lib/coin-config";
 import { usePricing } from "@/lib/pricing-client";
 
 interface BalanceInfo {
@@ -22,6 +22,8 @@ interface Checkout {
   qrDataUrl: string;
   amount: number;
   coins: number;
+  bonus?: number;
+  promoName?: string | null;
   expiresAt: string;
 }
 
@@ -34,7 +36,7 @@ interface HistoryItem {
 }
 
 export default function CoinsPage() {
-  const { costs, packages } = usePricing();
+  const { costs, packages, promotions } = usePricing();
   const [info, setInfo] = useState<BalanceInfo | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [checkout, setCheckout] = useState<Checkout | null>(null);
@@ -168,8 +170,14 @@ export default function CoinsPage() {
           </div>
           <div className="flex min-w-0 flex-1 basis-[260px] flex-col gap-3.5">
             <h2 className="text-[26px] font-bold leading-[1.55]">
-              เติม {checkout.coins} coin — {checkout.amount} บาท
+              เติม {checkout.coins} coin
+              {checkout.bonus ? ` + โบนัส ${checkout.bonus} coin` : ""} — {checkout.amount} บาท
             </h2>
+            {checkout.bonus ? (
+              <p className="-mt-1 text-sm font-semibold text-primary">
+                รวมได้ {(checkout.coins + checkout.bonus).toLocaleString("th-TH")} coin{checkout.promoName ? ` · โปร: ${checkout.promoName}` : ""}
+              </p>
+            ) : null}
             <p className="text-soft-text">
               สแกนจ่ายด้วย PromptPay ผ่านแอปธนาคาร ชำระแล้วระบบเติม coin ให้อัตโนมัติ ไม่ต้องส่งสลิป · เลขอ้างอิง{" "}
               <span className="font-mono text-foreground">{checkout.ref}</span>
@@ -191,6 +199,7 @@ export default function CoinsPage() {
             {packages.map((p, i) => {
               const best = !!p.badge;
               const busy = loadingPack === p.id;
+              const { bonus, promo } = bonusFor(p, promotions);
               return (
                 <button
                   key={p.id}
@@ -210,6 +219,15 @@ export default function CoinsPage() {
                       {p.badge}
                     </span>
                   )}
+                  {bonus > 0 && (
+                    <span
+                      title={promo?.name}
+                      aria-label={`โปรโมชัน${promo ? ` ${promo.name}` : ""}: โบนัส ${bonus} coin`}
+                      className="absolute -right-1.5 top-2 rotate-6 rounded-full bg-gradient-to-r from-[#ff8a6b] to-[#e5484d] px-2.5 py-0.5 text-xs font-bold text-white shadow-md"
+                    >
+                      +{bonus.toLocaleString("th-TH")} โบนัส
+                    </span>
+                  )}
                   <CoinIcon
                     count={p.coins < 50 ? 1 : p.coins < 100 ? 2 : p.coins < 200 ? 3 : p.coins < 500 ? 5 : 7}
                     className="h-[92px] w-full drop-shadow-[0_6px_10px_rgba(0,0,0,0.35)] transition-transform group-hover:scale-105"
@@ -220,6 +238,11 @@ export default function CoinsPage() {
                     </span>
                     <span className="text-sm text-muted-foreground">coin</span>
                   </span>
+                  {bonus > 0 && (
+                    <span className="mt-1 text-xs font-semibold text-primary">
+                      ได้ {p.coins.toLocaleString("th-TH")} + {bonus.toLocaleString("th-TH")} = {(p.coins + bonus).toLocaleString("th-TH")} coin
+                    </span>
+                  )}
                   <span
                     className={cn(
                       "mt-3.5 w-full rounded-full px-3 py-1.5 text-base font-bold",

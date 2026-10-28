@@ -7,6 +7,7 @@ import { bookings, morDus } from "@/db/schema";
 import { STATUS_LABEL } from "@/lib/booking";
 import { DataTable, EmptyRow, fmtDate, PAGE_SIZE, Pagination, parsePage, StatusBadge, Td, Th, Tr } from "@/components/admin/ui";
 import { AdminShell, FilterTabs } from "../shell";
+import { RefundButton } from "./refund-button";
 
 const STATUSES = ["requested", "accepted", "paid", "completed", "declined", "cancelled"] as const;
 type Status = (typeof STATUSES)[number];
@@ -34,7 +35,7 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
   const countOf = (s: string) => counts.find((c) => c.status === s)?.n ?? 0;
 
   return (
-    <AdminShell title="การจองคิวหมอดู" description="คิวปรึกษาวิดีโอทั้งหมด (ลูกค้าขอ → หมอดูรับ → ชำระเงิน → ลิงก์ Google Meet → เสร็จสิ้น) ยกเลิก/คืนเงินคิวที่ชำระแล้วทำนอกระบบ ตามที่ลูกค้าติดต่อมา">
+    <AdminShell title="การจองคิวหมอดู" description="คิวปรึกษาวิดีโอทั้งหมด (ลูกค้าขอ → หมอดูรับ → ชำระด้วย coin → ลิงก์ Google Meet → เสร็จสิ้น) คิวที่ชำระแล้วยกเลิกและคืน coin ได้ที่ปุ่มท้ายแถว">
       <FilterTabs
         base={`${base}/bookings`}
         param="status"
@@ -48,10 +49,11 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
             <Th>หมอดู</Th>
             <Th>ลูกค้า</Th>
             <Th className="text-right">นาที</Th>
-            <Th className="text-right">ราคา</Th>
-            <Th className="text-right">เว็บเก็บ</Th>
+            <Th className="text-right">ราคา (coin)</Th>
+            <Th className="text-right">เว็บเก็บ (coin)</Th>
             <Th>สถานะ</Th>
             <Th>Meet</Th>
+            <Th className="text-right">จัดการ</Th>
           </tr>
         </thead>
         <tbody>
@@ -67,8 +69,8 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
                   </Link>
                 </Td>
                 <Td className="text-right">{b.durationMin}</Td>
-                <Td className="text-right font-semibold">{b.priceBaht.toLocaleString("th-TH")}</Td>
-                <Td className="text-right text-muted-foreground">{b.commissionBaht.toLocaleString("th-TH")}</Td>
+                <Td className="text-right font-semibold">{b.priceCoins.toLocaleString("th-TH")}</Td>
+                <Td className="text-right text-muted-foreground">{b.commissionCoins.toLocaleString("th-TH")}</Td>
                 <Td>
                   <StatusBadge tone={s.tone}>{s.label}</StatusBadge>
                 </Td>
@@ -81,10 +83,17 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
                     <span className="text-muted-foreground">-</span>
                   )}
                 </Td>
+                <Td className="text-right">
+                  {b.status === "paid" ? (
+                    <div className="flex justify-end">
+                      <RefundButton bookingId={b.id} coins={b.priceCoins} />
+                    </div>
+                  ) : null}
+                </Td>
               </Tr>
             );
           })}
-          {rows.length === 0 && <EmptyRow cols={8}>ไม่มีรายการในสถานะนี้</EmptyRow>}
+          {rows.length === 0 && <EmptyRow cols={9}>ไม่มีรายการในสถานะนี้</EmptyRow>}
         </tbody>
       </DataTable>
       <Pagination page={page} total={total} path={`${base}/bookings`} params={{ status }} />

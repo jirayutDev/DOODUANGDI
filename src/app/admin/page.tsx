@@ -68,7 +68,7 @@ export default async function AdminPage() {
                   ดูทั้งหมด
                 </Link>
               </div>
-              <DataTable>
+              <DataTable className="[&_table]:min-w-0">
                 <thead>
                   <tr>
                     <Th>เวลา</Th>
@@ -83,7 +83,7 @@ export default async function AdminPage() {
                     return (
                       <Tr key={p.id}>
                         <Td className="whitespace-nowrap text-muted-foreground">{fmtDate(p.createdAt)}</Td>
-                        <Td>เติม {p.coins ?? 0} coin</Td>
+                        <Td>{p.purpose === "coin_topup" ? `เติม ${(p.coins ?? 0).toLocaleString("th-TH")} coin` : "รายการเก่า (สมาชิก)"}</Td>
                         <Td className="text-right">{p.amountBaht.toLocaleString("th-TH")} บาท</Td>
                         <Td>
                           <StatusBadge tone={s.tone}>{s.label}</StatusBadge>
@@ -103,7 +103,7 @@ export default async function AdminPage() {
                   ดูทั้งหมด
                 </Link>
               </div>
-              <DataTable>
+              <DataTable className="[&_table]:min-w-0">
                 <thead>
                   <tr>
                     <Th>เวลา</Th>

@@ -110,7 +110,7 @@ export default async function AdminUserPage({ params, searchParams }: { params: 
               <Tr key={p.id}>
                 <Td className="whitespace-nowrap text-muted-foreground">{fmtDate(p.createdAt)}</Td>
                 <Td className="font-mono text-xs">{p.promptpayRef}</Td>
-                <Td className="text-right">{(p.coins ?? 0).toLocaleString("th-TH")}</Td>
+                <Td className="text-right">{p.purpose === "coin_topup" ? (p.coins ?? 0).toLocaleString("th-TH") : "-"}</Td>
                 <Td className="text-right">{p.amountBaht.toLocaleString("th-TH")}</Td>
                 <Td>
                   <StatusBadge tone={s.tone}>{s.label}</StatusBadge>

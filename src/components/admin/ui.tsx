@@ -45,7 +45,7 @@ export function StatTile({ label, value, hint }: { label: string; value: string;
 // ตารางเลื่อนแนวนอนได้บนจอเล็ก หัวตารางชัด แถวมีเส้นคั่นและไฮไลต์เมื่อชี้
 export function DataTable({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("overflow-x-auto rounded-xl border border-border bg-card", className)}>
+    <div className={cn("admin-scroll overflow-x-auto rounded-xl border border-border bg-card", className)}>
       <table className="w-full min-w-[640px] border-collapse text-left text-sm">{children}</table>
     </div>
   );

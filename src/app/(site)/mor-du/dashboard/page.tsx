@@ -5,7 +5,8 @@ import { getDb } from "@/db";
 import { bookings, morDuLedger, morDus } from "@/db/schema";
 import { createClient } from "@/lib/supabase/server";
 import { loginHref } from "@/lib/safe-next";
-import { fmtThaiDateTime, STATUS_LABEL, commissionPercent } from "@/lib/booking";
+import { coinsToBaht, fmtThaiDateTime, STATUS_LABEL } from "@/lib/booking";
+import { getPricing } from "@/lib/pricing";
 import { StatusBadge } from "@/components/admin/ui";
 import { MorDuBookingActions } from "@/components/booking/booking-actions";
 import { PayoutInfoForm } from "./payout-info-form";
@@ -14,7 +15,7 @@ export const metadata = { title: "หลังบ้านหมอดู · ด
 
 type Row = typeof bookings.$inferSelect;
 
-const toLite = (r: Row) => ({ id: r.id, status: r.status, startsAt: r.startsAt.toISOString(), meetUrl: r.meetUrl, priceBaht: r.priceBaht });
+const toLite = (r: Row) => ({ id: r.id, status: r.status, startsAt: r.startsAt.toISOString(), meetUrl: r.meetUrl, priceCoins: r.priceCoins });
 
 function Section({ title, list, empty }: { title: string; list: Row[]; empty: string }) {
   return (
@@ -33,7 +34,7 @@ function Section({ title, list, empty }: { title: string; list: Row[]; empty: st
               </div>
               <p className="mt-1 text-sm text-soft-text">{r.topic}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                ลูกค้าจ่าย ฿{r.priceBaht.toLocaleString("th-TH")} · คุณได้รับ ฿{(r.priceBaht - r.commissionBaht).toLocaleString("th-TH")}
+                ลูกค้าจ่าย {r.priceCoins.toLocaleString("th-TH")} coin · คุณได้รับ {(r.priceCoins - r.commissionCoins).toLocaleString("th-TH")} coin
               </p>
               <div className="mt-3">
                 <MorDuBookingActions booking={toLite(r)} />
@@ -64,13 +65,14 @@ export default async function MorDuDashboardPage() {
     );
   }
 
+  const pricing = await getPricing();
   const [rows, [totals]] = await Promise.all([
     db.select().from(bookings).where(eq(bookings.morDuId, user.id)).orderBy(desc(bookings.startsAt)).limit(60),
     db
       .select({
-        earned: sql<number>`coalesce(sum(case when ${morDuLedger.amountBaht} > 0 then ${morDuLedger.amountBaht} else 0 end), 0)::int`,
-        paidOut: sql<number>`coalesce(-sum(case when ${morDuLedger.amountBaht} < 0 then ${morDuLedger.amountBaht} else 0 end), 0)::int`,
-        balance: sql<number>`coalesce(sum(${morDuLedger.amountBaht}), 0)::int`,
+        earned: sql<number>`coalesce(sum(case when ${morDuLedger.amountCoins} > 0 then ${morDuLedger.amountCoins} else 0 end), 0)::int`,
+        paidOut: sql<number>`coalesce(-sum(case when ${morDuLedger.amountCoins} < 0 then ${morDuLedger.amountCoins} else 0 end), 0)::int`,
+        balance: sql<number>`coalesce(sum(${morDuLedger.amountCoins}), 0)::int`,
       })
       .from(morDuLedger)
       .where(eq(morDuLedger.morDuId, user.id)),
@@ -97,12 +99,17 @@ export default async function MorDuDashboardPage() {
         ].map((x) => (
           <div key={x.label} className="rounded-2xl border border-line-soft bg-card p-4">
             <p className="text-xs text-muted-foreground">{x.label}</p>
-            <p className="mt-1 text-xl font-bold text-primary">฿{x.value.toLocaleString("th-TH")}</p>
+            <p className="mt-1 text-xl font-bold text-primary">{x.value.toLocaleString("th-TH")} coin</p>
+            {x.label === "ยอดคงเหลือรอโอน" && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                ≈ ฿{coinsToBaht(x.value, pricing.coinBahtRate).toLocaleString("th-TH")} ตอนโอน (อัตรา ฿{pricing.coinBahtRate}/coin)
+              </p>
+            )}
           </div>
         ))}
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        เว็บหักค่าบริการ {commissionPercent()}% ของราคาที่ลูกค้าจ่าย รายได้เข้ายอดเมื่อคุณกด &ldquo;เสร็จสิ้น&rdquo; หลังให้คำปรึกษา แอดมินโอนยอดคงเหลือให้ตามช่องทางที่คุณบันทึกไว้
+        เว็บหักค่าบริการ {pricing.morDuCommissionPercent}% ของ coin ที่ลูกค้าจ่าย รายได้เข้ายอดเมื่อคุณกด &ldquo;เสร็จสิ้น&rdquo; หลังให้คำปรึกษา แอดมินโอนยอดคงเหลือให้ตามช่องทางที่คุณบันทึกไว้
       </p>
 
       <PayoutInfoForm initial={m.payoutInfo ?? ""} />

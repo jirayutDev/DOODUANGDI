@@ -179,7 +179,7 @@ function MorDuApplicationForm({ email }: { email: string }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="priceQuestion">ราคาถามเป็นข้อ (บาท)</Label>
+                <Label htmlFor="priceQuestion">ราคาถามเป็นข้อ (coin)</Label>
                 <Input
                   id="priceQuestion"
                   type="number"
@@ -190,7 +190,7 @@ function MorDuApplicationForm({ email }: { email: string }) {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="priceLiveMinute">ราคาแชทสด (บาท/นาที)</Label>
+                <Label htmlFor="priceLiveMinute">ราคาคิววิดีโอ (coin/นาที)</Label>
                 <Input
                   id="priceLiveMinute"
                   type="number"

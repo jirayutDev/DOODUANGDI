@@ -40,6 +40,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - ฟรี: ดวงรายวัน `/daily-horoscope`, รายสัปดาห์ `/duang/weekly`, รายเดือน `/duang/monthly` (ตามราศี)
 - บริการอื่นทั้งหมดต้อง ล็อกอิน + จ่าย coin ต่อครั้ง (ไม่มีสมาชิก/แพ็กเกจรายเดือน) ราคาแก้ที่ `src/lib/coin-config.ts`
 - ผู้ใช้ใหม่ได้ coin ต้อนรับครั้งเดียว (`WELCOME_COINS` ใน `coin-config.ts`) ให้ตอนเปิด `/api/coins/balance` ครั้งแรก
+- โปรโมชันการเติม: แอดมินตั้งที่หน้า "ตั้งราคา" (โบนัสเป็น % หรือจำนวน coin คงที่ เลือกแพ็กเกจและช่วงเวลาได้) ใช้โปรที่ให้โบนัสมากที่สุดเพียงอันเดียว ตัดสินตอนสร้าง QR แล้วเก็บไว้กับรายการ (`payments.bonus_coins`, `payments.promo_id`) โบนัสเข้ากระเป๋าพร้อม coin หลักตอนชำระสำเร็จ
 - เติม coin: `/coins` (PromptPay QR) และแลกโค้ด; แอดมินจัดการทุกอย่างที่หน้าแอดมิน (path ลับตาม `ADMIN_PATH`)
 - หลังแก้ schema ให้รัน `npx drizzle-kit push` (ตารางใหม่: coin_wallets, coin_transactions, coin_codes, coin_code_redemptions, scheduled_horoscopes และคอลัมน์ payments.coins, payments.slip_trans_ref)
 

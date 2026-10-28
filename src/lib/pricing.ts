@@ -25,6 +25,26 @@ export const pricingSchema = z.object({
     .max(12)
     .refine((list) => new Set(list.map((p) => p.id)).size === list.length, "id แพ็กเกจซ้ำกัน"),
   welcomeCoins: z.number().int().min(0).max(1000),
+  promotions: z
+    .array(
+      z
+        .object({
+          id: z.string().regex(/^[a-z0-9-]{1,20}$/),
+          name: z.string().trim().min(1).max(40),
+          bonusPercent: z.number().int().min(0).max(500),
+          bonusCoins: z.number().int().min(0).max(100_000),
+          packageIds: z.array(z.string().regex(/^[a-z0-9-]{1,20}$/)).max(12),
+          startsAt: z.string().datetime({ offset: true }).optional(),
+          endsAt: z.string().datetime({ offset: true }).optional(),
+          active: z.boolean(),
+        })
+        .refine((x) => x.bonusPercent > 0 || x.bonusCoins > 0, "โปรต้องมีโบนัสอย่างน้อยหนึ่งแบบ (% หรือ coin)")
+        .refine((x) => !x.startsAt || !x.endsAt || new Date(x.startsAt) < new Date(x.endsAt), "วันเริ่มต้องก่อนวันสิ้นสุด")
+    )
+    .max(10)
+    .refine((list) => new Set(list.map((x) => x.id)).size === list.length, "id โปรซ้ำกัน"),
+  morDuCommissionPercent: z.number().min(0).max(90),
+  coinBahtRate: z.number().min(0.01).max(10),
 });
 
 const TTL_MS = 30_000;
@@ -45,6 +65,9 @@ export async function getPricing(): Promise<Pricing> {
         costs: { ...DEFAULT_PRICING.costs, ...(raw.costs ?? {}) },
         packages: raw.packages ?? DEFAULT_PRICING.packages,
         welcomeCoins: raw.welcomeCoins ?? DEFAULT_PRICING.welcomeCoins,
+        promotions: raw.promotions ?? DEFAULT_PRICING.promotions,
+        morDuCommissionPercent: raw.morDuCommissionPercent ?? DEFAULT_PRICING.morDuCommissionPercent,
+        coinBahtRate: raw.coinBahtRate ?? DEFAULT_PRICING.coinBahtRate,
       });
       if (parsed.success) value = parsed.data as Pricing;
     }

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getDb } from "@/db";
 import { payments } from "@/db/schema";
 import { getPricing } from "@/lib/pricing";
+import { bonusFor } from "@/lib/coin-config";
 import { createPromptPayQr, isPaysoConfigured, newPaysoRef } from "@/lib/payso";
 
 // เติม coin ผ่าน Payso PromptPay QR: สร้างรายการ payment (purpose = coin_topup) แล้วขอ QR จาก Payso
@@ -39,8 +40,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
 
-  const pack = (await getPricing()).packages.find((p) => p.id === body.packageId);
+  const pricing = await getPricing();
+  const pack = pricing.packages.find((p) => p.id === body.packageId);
   if (!pack) return NextResponse.json({ error: "ไม่พบแพ็กเกจนี้" }, { status: 400 });
+  // โบนัสโปรโมชันตัดสินที่นี่ฝั่งเซิร์ฟเวอร์เท่านั้น แล้วเก็บไว้กับรายการ แก้โปรทีหลังไม่กระทบ QR ที่สร้างไปแล้ว
+  const { bonus, promo } = bonusFor(pack, pricing.promotions);
 
   if (!isPaysoConfigured()) {
     return NextResponse.json(
@@ -63,6 +67,8 @@ export async function POST(req: NextRequest) {
         purpose: "coin_topup",
         amountBaht: pack.priceBaht,
         coins: pack.coins,
+        bonusCoins: bonus > 0 ? bonus : null,
+        promoId: bonus > 0 ? (promo?.id ?? null) : null,
         promptpayRef: ref,
       })
       .returning();
@@ -87,6 +93,8 @@ export async function POST(req: NextRequest) {
     qrDataUrl: qr.qrDataUrl,
     amount: pack.priceBaht,
     coins: pack.coins,
+    bonus: bonus > 0 ? bonus : 0,
+    promoName: bonus > 0 ? (promo?.name ?? null) : null,
     expiresAt: qr.expiresAt ?? new Date(Date.now() + 10 * 60 * 1000).toISOString(),
   });
 }

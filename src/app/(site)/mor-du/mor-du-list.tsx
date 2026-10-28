@@ -76,14 +76,14 @@ export function MorDuList({ list }: { list: MorDuItem[] }) {
             </p>
             <div className="flex gap-2.5">
               <span className="flex min-h-[50px] flex-1 items-center justify-center rounded-[14px] bg-primary px-3 text-[16px] font-bold text-primary-foreground">
-                ถามเป็นข้อ ฿{m.priceQuestion}
+                ถามเป็นข้อ {m.priceQuestion} coin
               </span>
               {m.priceLiveMinute ? (
                 <Link
                   href={`/mor-du/${m.userId}/book`}
                   className="flex min-h-[50px] flex-1 items-center justify-center rounded-[14px] bg-secondary px-3 text-center text-[16px] font-semibold text-foreground no-underline hover:bg-primary hover:text-primary-foreground"
                 >
-                  ขอคิววิดีโอ ฿{m.priceLiveMinute}/นาที
+                  ขอคิววิดีโอ {m.priceLiveMinute} coin/นาที
                 </Link>
               ) : null}
             </div>

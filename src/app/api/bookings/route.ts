@@ -4,7 +4,8 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import { bookings, morDus } from "@/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
-import { BOOKING_DURATIONS, checkStartTime, commissionPercent, priceFor, splitPrice } from "@/lib/booking";
+import { BOOKING_DURATIONS, checkStartTime, priceFor, splitPrice } from "@/lib/booking";
+import { getPricing } from "@/lib/pricing";
 import { currentUserId, fail } from "@/lib/booking-api";
 
 const schema = z.object({
@@ -44,9 +45,10 @@ export async function POST(req: NextRequest) {
     .where(and(eq(bookings.customerId, userId), inArray(bookings.status, ["requested", "accepted"])));
   if (open >= 5) return fail("มีคำขอคิวที่รอดำเนินการหลายรายการแล้ว จัดการรายการเดิมก่อนนะ", 429);
 
-  const priceBaht = priceFor(m.priceLiveMinute, durationMin);
-  if (priceBaht < 6) return fail("ราคาต่ำกว่าขั้นต่ำของระบบชำระเงิน (6 บาท)", 400);
-  const { commissionBaht } = splitPrice(priceBaht, commissionPercent());
+  // ราคาเป็น coin (coin ต่อนาทีของหมอดู x จำนวนนาที) ค่าบริการเว็บตามเปอร์เซ็นต์ที่แอดมินตั้ง
+  const priceCoins = priceFor(m.priceLiveMinute, durationMin);
+  if (priceCoins < 1) return fail("ราคาคิวนี้ไม่ถูกต้อง", 400);
+  const { commissionCoins } = splitPrice(priceCoins, (await getPricing()).morDuCommissionPercent);
 
   const [created] = await db
     .insert(bookings)
@@ -57,8 +59,8 @@ export async function POST(req: NextRequest) {
       endsAt: new Date(start.getTime() + durationMin * 60_000),
       durationMin,
       topic,
-      priceBaht,
-      commissionBaht,
+      priceCoins,
+      commissionCoins,
     })
     .returning({ id: bookings.id });
   return NextResponse.json({ id: created.id });

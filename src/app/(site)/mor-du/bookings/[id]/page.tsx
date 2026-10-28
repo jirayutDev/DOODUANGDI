@@ -14,7 +14,7 @@ export const metadata = { title: "การจองคิว · ดูดวง
 
 const HINT: Record<string, string> = {
   requested: "ส่งคำขอแล้ว รอหมอดูตอบรับ ยังไม่ต้องชำระเงิน",
-  accepted: "หมอดูรับคิวแล้ว ชำระเงินเพื่อยืนยันนัด",
+  accepted: "หมอดูรับคิวแล้ว ชำระด้วย coin เพื่อยืนยันนัด",
   declined: "หมอดูไม่สะดวกในเวลานี้ ลองขอคิวเวลาอื่นหรือเลือกหมอดูท่านอื่นนะ",
   paid: "ชำระเงินแล้ว เข้าห้อง Google Meet ตามเวลานัด",
   completed: "การปรึกษาเสร็จสิ้นแล้ว ขอบคุณที่ใช้บริการ",
@@ -60,7 +60,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">ราคา</dt>
-          <dd className="font-bold text-primary">฿{b.priceBaht.toLocaleString("th-TH")}</dd>
+          <dd className="font-bold text-primary">{b.priceCoins.toLocaleString("th-TH")} coin</dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted-foreground">เรื่องที่ปรึกษา</dt>
@@ -86,7 +86,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
       )}
 
       <div className="mt-5">
-        <CustomerBookingActions booking={{ id: b.id, status: b.status, startsAt: b.startsAt.toISOString(), meetUrl: b.meetUrl, priceBaht: b.priceBaht }} />
+        <CustomerBookingActions booking={{ id: b.id, status: b.status, startsAt: b.startsAt.toISOString(), meetUrl: b.meetUrl, priceCoins: b.priceCoins }} />
       </div>
       <p className="mt-6 text-xs text-muted-foreground">
         ต้องการยกเลิกหลังชำระเงินหรือมีปัญหา ติดต่อเราที่{" "}

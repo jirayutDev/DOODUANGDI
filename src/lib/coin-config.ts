@@ -56,7 +56,20 @@ export function describeTransaction(item: { kind: string; ref: string | null }):
   const feature = item.ref && isFeatureKey(item.ref) ? FEATURE_COSTS[item.ref].label : null;
   if (item.kind === "refund") return feature ? `คืน coin: ${feature}` : KIND_LABEL.refund;
   if (item.kind === "bonus" && item.ref === "welcome") return "coin ต้อนรับ";
+  if (item.kind === "bonus" && item.ref?.startsWith("promo:")) return "โบนัสโปรโมชันเติม coin";
   return feature ?? KIND_LABEL[item.kind] ?? item.kind;
+}
+
+// โปรโมชันการเติม coin: ได้ coin โบนัสเพิ่มเมื่อเติมแพ็กเกจที่เข้าเงื่อนไขในช่วงเวลาที่กำหนด
+export interface Promotion {
+  id: string;
+  name: string;
+  bonusPercent: number; // โบนัส % ของ coin ในแพ็กเกจ (0 = ไม่ใช้)
+  bonusCoins: number; // โบนัสคงที่ (coin) บวกเพิ่ม (0 = ไม่ใช้)
+  packageIds: string[]; // ว่าง = ใช้กับทุกแพ็กเกจ
+  startsAt?: string; // ISO มีโซนเวลา ไม่ใส่ = เริ่มทันที
+  endsAt?: string; // ISO มีโซนเวลา ไม่ใส่ = ไม่หมดอายุ
+  active: boolean;
 }
 
 // ราคาที่ใช้งานจริง (ค่าเริ่มต้น = ค่าด้านบน ถูกแทนที่ด้วยที่แอดมินตั้ง)
@@ -64,10 +77,35 @@ export interface Pricing {
   costs: Record<FeatureKey, number>;
   packages: CoinPackage[];
   welcomeCoins: number;
+  promotions: Promotion[];
+  morDuCommissionPercent: number; // ส่วนที่เว็บเก็บจาก coin ของคิวหมอดู (%)
+  coinBahtRate: number; // อัตราแปลง coin รายได้หมอดูเป็นบาทตอนโอน (บาทต่อ 1 coin)
 }
 
 export const DEFAULT_PRICING: Pricing = {
   costs: Object.fromEntries(Object.entries(FEATURE_COSTS).map(([k, v]) => [k, v.cost])) as Record<FeatureKey, number>,
   packages: COIN_PACKAGES,
   welcomeCoins: WELCOME_COINS,
+  promotions: [],
+  morDuCommissionPercent: 20,
+  coinBahtRate: 0.7,
 };
+
+export function isPromoLive(p: Promotion, now = Date.now()): boolean {
+  if (!p.active) return false;
+  if (p.startsAt && new Date(p.startsAt).getTime() > now) return false;
+  if (p.endsAt && new Date(p.endsAt).getTime() < now) return false;
+  return true;
+}
+
+// โบนัสของแพ็กเกจหนึ่งจากโปรที่ใช้งานอยู่ — ใช้โปรที่ให้โบนัสมากที่สุดเพียงอันเดียว (ไม่ซ้อนกัน)
+export function bonusFor(pack: CoinPackage, promos: Promotion[], now = Date.now()): { bonus: number; promo: Promotion | null } {
+  let best = { bonus: 0, promo: null as Promotion | null };
+  for (const p of promos) {
+    if (!isPromoLive(p, now)) continue;
+    if (p.packageIds.length > 0 && !p.packageIds.includes(pack.id)) continue;
+    const bonus = Math.floor((pack.coins * p.bonusPercent) / 100) + p.bonusCoins;
+    if (bonus > best.bonus) best = { bonus, promo: p };
+  }
+  return best;
+}

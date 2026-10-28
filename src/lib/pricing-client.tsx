@@ -13,9 +13,9 @@ function start() {
   started = true;
   fetch("/api/pricing")
     .then((r) => (r.ok ? r.json() : null))
-    .then((d: Pick<Pricing, "costs" | "packages"> | null) => {
+    .then((d: Pick<Pricing, "costs" | "packages" | "promotions"> | null) => {
       if (!d?.costs || !Array.isArray(d.packages)) return;
-      current = { ...DEFAULT_PRICING, costs: d.costs, packages: d.packages };
+      current = { ...DEFAULT_PRICING, costs: d.costs, packages: d.packages, promotions: d.promotions ?? [] };
       listeners.forEach((l) => l());
     })
     .catch(() => {

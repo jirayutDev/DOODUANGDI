@@ -6,20 +6,21 @@ export type BookingDuration = (typeof BOOKING_DURATIONS)[number];
 export const MIN_LEAD_MS = 2 * 60 * 60 * 1000; // ขอคิวล่วงหน้าอย่างน้อย 2 ชั่วโมง
 export const MAX_AHEAD_MS = 60 * 24 * 60 * 60 * 1000; // ไม่เกิน 60 วันข้างหน้า
 
-// ส่วนที่เว็บเก็บจากราคาที่ลูกค้าจ่าย (%) ตั้งด้วย env MORDU_COMMISSION_PERCENT ค่าเริ่มต้น 20
-export function commissionPercent(): number {
-  const n = Number(process.env.MORDU_COMMISSION_PERCENT);
-  return Number.isFinite(n) && n >= 0 && n <= 90 ? n : 20;
+// ราคาเป็น coin: coin ต่อนาทีของหมอดู x จำนวนนาที
+export function priceFor(perMinuteCoins: number, durationMin: number): number {
+  return Math.round(perMinuteCoins * durationMin);
 }
 
-export function priceFor(perMinuteBaht: number, durationMin: number): number {
-  return Math.round(perMinuteBaht * durationMin);
+// ค่าบริการเว็บ (%) และอัตราแปลง coin เป็นบาทตอนโอนให้หมอดู ตั้งในหลังบ้าน (เมนู "ตั้งราคา") อ่านด้วย getPricing()
+// อัตราแลกควรต่ำกว่าราคาขายต่อ coin ของแพ็กเกจที่ถูกที่สุด (เช่น แพ็กใหญ่ราว 0.77 บาท/coin) เพื่อไม่ให้เว็บขาดทุนหลังหักค่าบริการ
+export function coinsToBaht(coins: number, rate: number): number {
+  return Math.floor(coins * rate);
 }
 
-// แบ่งเงิน: เว็บเก็บค่าคอมมิชชันปัดลงเป็นบาทเต็ม ที่เหลือเป็นรายได้หมอดู (รวมกันได้เท่าราคาเสมอ)
-export function splitPrice(priceBaht: number, percent = commissionPercent()): { commissionBaht: number; morDuBaht: number } {
-  const commissionBaht = Math.floor((priceBaht * percent) / 100);
-  return { commissionBaht, morDuBaht: priceBaht - commissionBaht };
+// แบ่ง coin: เว็บเก็บค่าคอมมิชชันปัดลงเป็น coin เต็ม ที่เหลือเป็นรายได้หมอดู (รวมกันได้เท่าราคาเสมอ)
+export function splitPrice(priceCoins: number, percent: number): { commissionCoins: number; morDuCoins: number } {
+  const commissionCoins = Math.floor((priceCoins * percent) / 100);
+  return { commissionCoins, morDuCoins: priceCoins - commissionCoins };
 }
 
 export type StartCheck = { ok: true } | { ok: false; reason: string };

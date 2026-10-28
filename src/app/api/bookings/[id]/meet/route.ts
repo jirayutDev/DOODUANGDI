@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getDb } from "@/db";
 import { bookings } from "@/db/schema";
 import { isMeetUrl } from "@/lib/booking";
-import { attachMeetLink } from "@/lib/payments";
+import { attachMeetLink } from "@/lib/booking-meet";
 import { currentUserId, fail, loadBooking } from "@/lib/booking-api";
 
 const schema = z.object({ meetUrl: z.string().trim().max(200).optional() });

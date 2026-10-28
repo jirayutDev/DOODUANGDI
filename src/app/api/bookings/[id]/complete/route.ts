@@ -4,7 +4,7 @@ import { getDb } from "@/db";
 import { bookings, morDuLedger } from "@/db/schema";
 import { currentUserId, fail, loadBooking } from "@/lib/booking-api";
 
-// หมอดูกด "เสร็จสิ้น" หลังถึงเวลานัด: รายได้ (ราคา − ค่าคอมมิชชัน) เข้ายอดของหมอดู ทำซ้ำไม่ได้ (ล็อกด้วยสถานะ + unique ต่อการจอง)
+// หมอดูกด "เสร็จสิ้น" หลังถึงเวลานัด: รายได้ coin (ราคา − ค่าคอมมิชชัน) เข้ายอดของหมอดู ทำซ้ำไม่ได้ (ล็อกด้วยสถานะ + unique ต่อการจอง)
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = await currentUserId();
   if (!userId) return fail("กรุณาเข้าสู่ระบบก่อน", 401);
@@ -13,7 +13,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (b.status !== "paid") return fail("คิวนี้ไม่ได้อยู่ในสถานะชำระแล้ว", 409);
   if (b.startsAt.getTime() > Date.now()) return fail("ยังไม่ถึงเวลานัด", 409);
 
-  const earn = b.priceBaht - b.commissionBaht;
+  const earn = b.priceCoins - b.commissionCoins;
   const ok = await getDb().transaction(async (tx) => {
     const now = new Date();
     const claimed = await tx
@@ -24,7 +24,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     if (claimed.length === 0) return false;
     await tx
       .insert(morDuLedger)
-      .values({ morDuId: b.morDuId, bookingId: b.id, amountBaht: earn, kind: "earning", note: `คิว ${b.startsAt.toISOString()}` })
+      .values({ morDuId: b.morDuId, bookingId: b.id, amountCoins: earn, kind: "earning", note: `คิว ${b.startsAt.toISOString()}` })
       .onConflictDoNothing();
     return true;
   });

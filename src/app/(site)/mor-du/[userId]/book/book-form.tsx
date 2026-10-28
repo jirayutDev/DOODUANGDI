@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,22 @@ export function BookForm({ morDuId, perMinute }: { morDuId: string; perMinute: n
   const [duration, setDuration] = useState<number>(BOOKING_DURATIONS[1]);
   const [topic, setTopic] = useState("");
   const [busy, setBusy] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
   const price = priceFor(perMinute, duration);
+
+  // ยอด coin ปัจจุบันของผู้ใช้ (แสดงให้เห็นก่อนขอคิว ไม่หักตอนขอ)
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/coins/balance")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { balance?: number } | null) => {
+        if (!cancelled && typeof d?.balance === "number") setBalance(d.balance);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,7 +64,7 @@ export function BookForm({ morDuId, perMinute }: { morDuId: string; perMinute: n
         <select value={duration} onChange={(e) => setDuration(Number(e.target.value))} className={field}>
           {BOOKING_DURATIONS.map((d) => (
             <option key={d} value={d}>
-              {d} นาที — ฿{priceFor(perMinute, d).toLocaleString("th-TH")}
+              {d} นาที — {priceFor(perMinute, d).toLocaleString("th-TH")} coin
             </option>
           ))}
         </select>
@@ -70,11 +85,17 @@ export function BookForm({ morDuId, perMinute }: { morDuId: string; perMinute: n
 
       <div className="rounded-xl bg-secondary p-4 text-sm text-soft-text">
         <p>
-          ราคา <span className="text-lg font-bold text-primary">฿{price.toLocaleString("th-TH")}</span> (฿{perMinute}/นาที × {duration} นาที)
+          ราคา <span className="text-lg font-bold text-primary">{price.toLocaleString("th-TH")} coin</span> ({perMinute} coin/นาที × {duration} นาที)
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          ตอนนี้ยังไม่ต้องจ่ายเงิน รอหมอดูตอบรับคิวก่อน แล้วค่อยชำระผ่าน PromptPay ลิงก์ห้องประชุม Google Meet จะแสดงในหน้าการจองหลังชำระเงิน
+          ตอนนี้ยังไม่หัก coin รอหมอดูตอบรับคิวก่อน แล้วค่อยกดชำระด้วย coin ในหน้าการจอง ลิงก์ห้องประชุม Google Meet จะแสดงในหน้าการจองหลังชำระ
         </p>
+        {balance !== null && (
+          <p className={`mt-1 text-xs ${balance >= price ? "text-muted-foreground" : "text-red-400"}`}>
+            coin ของคุณตอนนี้ {balance.toLocaleString("th-TH")}
+            {balance < price ? " (ยังไม่พอสำหรับคิวนี้ เติม coin ได้ก่อนชำระ)" : ""}
+          </p>
+        )}
       </div>
 
       <Button type="submit" disabled={busy || !when || topic.trim().length < 5} className="h-auto min-h-[50px] rounded-[14px] text-base font-bold">
