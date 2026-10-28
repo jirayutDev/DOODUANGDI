@@ -75,8 +75,18 @@ interface ChatMsg {
   content: string | ChatContentPart[];
 }
 
-async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: number, timeoutMs: number, provider: AiProvider = mainProvider()): Promise<string> {
-  const send = (tokenParam: "max_tokens" | "max_completion_tokens") =>
+// ค่าความสุ่มเริ่มต้น: ต่ำกว่าค่าปกติของหลายเจ้า (มัก 1.0) เพื่อลดการเลือกคำแปลกๆ/แต่งคำไทยเอง ส่งเป็น undefined = ไม่ส่งพารามิเตอร์นี้
+const DEFAULT_TEMPERATURE = 0.7;
+
+async function callOpenRouter(
+  model: string,
+  messages: ChatMsg[],
+  maxTokens: number,
+  timeoutMs: number,
+  provider: AiProvider = mainProvider(),
+  temperature: number | undefined = DEFAULT_TEMPERATURE
+): Promise<string> {
+  const send = (tokenParam: "max_tokens" | "max_completion_tokens", temp: number | undefined) =>
     fetch(`${provider.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -90,17 +100,24 @@ async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: num
         model,
         // โมเดลแบบ reasoning ใช้ token คิดก่อนตอบ ให้ budget น้อยไปจะโดนตัดตอนคิด (finish_reason: length)
         [tokenParam]: maxTokens,
+        ...(temp !== undefined ? { temperature: temp } : {}),
         messages,
       }),
       // ตัดโมเดลที่ช้า/ค้าง ไม่ให้ฟังก์ชันบนโฮสต์รอจนถูกฆ่า (ถ้าถูกฆ่าหลังหัก coin แล้ว จะไม่มีโอกาสคืน coin)
       signal: AbortSignal.timeout(timeoutMs),
     });
 
-  let res = await send("max_tokens");
-  // โมเดล GPT รุ่นใหม่บางตัวไม่รับ max_tokens ต้องใช้ max_completion_tokens: ถ้าเจอ error แบบนี้ลองใหม่ด้วยชื่อพารามิเตอร์ที่ถูก
-  if (res.status === 400) {
+  let tokenParam: "max_tokens" | "max_completion_tokens" = "max_tokens";
+  let temp: number | undefined = temperature;
+  let res = await send(tokenParam, temp);
+  // โมเดลบางตัวไม่รับพารามิเตอร์ที่เราส่ง (GPT รุ่นใหม่ไม่รับ max_tokens/temperature ที่ไม่ใช่ค่าเริ่มต้น) ปรับตามข้อความ error แล้วลองใหม่ได้สูงสุด 2 รอบ
+  for (let attempt = 0; attempt < 2 && res.status === 400; attempt++) {
     const peek = (await res.clone().json().catch(() => null)) as { error?: { message?: string } } | null;
-    if (/max_tokens|max_completion_tokens/i.test(peek?.error?.message ?? "")) res = await send("max_completion_tokens");
+    const msg = peek?.error?.message ?? "";
+    if (temp !== undefined && /temperature/i.test(msg)) temp = undefined;
+    else if (tokenParam === "max_tokens" && /max_tokens|max_completion_tokens/i.test(msg)) tokenParam = "max_completion_tokens";
+    else break;
+    res = await send(tokenParam, temp);
   }
 
   if (!res.ok) {
@@ -142,7 +159,8 @@ async function chatViaOpenRouter(
   messages: ChatMsg[],
   maxTokens = 700,
   validate?: (text: string) => boolean,
-  deadlineMs = 22_000
+  deadlineMs = 22_000,
+  temperature?: number
 ): Promise<string | null> {
   lastAiFailures = [];
   const provider = mainProvider();
@@ -161,7 +179,7 @@ async function chatViaOpenRouter(
       break; // เหลือเวลาไม่พอรอโมเดลถัดไป
     }
     try {
-      const text = await callOpenRouter(model, messages, maxTokens, remaining, provider);
+      const text = await callOpenRouter(model, messages, maxTokens, remaining, provider, temperature ?? DEFAULT_TEMPERATURE);
       if (validate && !validate(text)) throw new Error(`Incomplete response (${model})`);
       return text;
     } catch (e) {
@@ -319,6 +337,7 @@ export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Prom
     "เขียนด้วยภาษาง่ายๆ เหมือนเพื่อนเล่าให้ฟัง เน้นว่าชีวิตจริงจะเจออะไรและควรทำหรือไม่ควรทำอะไร พูดตรงๆ ชัดเจน (เช่น 'ควรเลื่อนการตัดสินใจเรื่องใหญ่ไปก่อน') ไม่เขียนกำกวมหรือเป็นกลอน",
     "ถ้าจะอ้างอิงดาว ใช้ได้ไม่เกิน 1-2 จุด และต้องอธิบายผลต่อชีวิตจริงในประโยคเดียวกันเสมอ ห้ามโยนศัพท์ดาวทิ้งไว้เฉยๆ (เช่น ศุกร์ถอยหลัง ให้บอกว่าหมายถึงเรื่องรักที่เก่าๆ หรือการตัดสินใจเรื่องใจมักวกกลับมาให้ทบทวน)",
     "ห้ามระบุตัวเลขนำโชคหรือเลขเสี่ยงโชคใดๆ (ไม่ทำนายหวย) ห้ามกล่าวถึงว่าเป็น AI",
+    "ใช้เฉพาะคำภาษาไทยที่มีอยู่จริงและคนทั่วไปใช้กัน ห้ามประดิษฐ์คำหรือสะกดคำเอง ถ้าไม่แน่ใจว่าคำไหนใช้ได้ ให้เลือกคำง่ายๆ ที่แน่ใจแทน",
   ].join("\n");
 
   const reply = await chatViaOpenRouter(
@@ -328,10 +347,47 @@ export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Prom
     ],
     800,
     undefined,
-    55_000 // งานสร้างล่วงหน้า (cron/แอดมิน) รันได้ถึง 60 วินาที
+    40_000, // งานสร้างล่วงหน้า (cron/แอดมิน) รันได้ถึง 60 วินาที เหลือเวลาให้รอบตรวจทานอีก 15 วินาที
+    0.5 // ข้อความทำนายต้องนิ่งและสะกดถูก ไม่ต้องสร้างสรรค์มาก
   );
   // กันโมเดลหลุดใส่ markdown มา
-  return reply?.replace(/\*\*|^#+\s*/gm, "").trim() || null;
+  const draft = reply?.replace(/\*\*|^#+\s*/gm, "").trim();
+  if (!draft) return null;
+  return (await polishThai(draft)) ?? draft;
+}
+
+const HORO_LABELS = ["ภาพรวม:", "ความรัก:", "การงาน:", "การเงิน:", "ข้อแนะนำ:"];
+
+// รับข้อความที่ตรวจทานแล้วก็ต่อเมื่อโครงสร้างยังครบ (5 ป้าย) และความยาวใกล้เคียงของเดิม กันโมเดลตัดทอน/เขียนใหม่ทั้งชุด
+export function acceptPolished(original: string, polished: string): boolean {
+  const o = original.trim();
+  const p = polished.trim();
+  if (!p || !HORO_LABELS.every((l) => p.includes(l))) return false;
+  return p.length >= o.length * 0.6 && p.length <= o.length * 1.4;
+}
+
+// ตรวจทานภาษาไทยอีกรอบ: โมเดลมักมีคำเพี้ยนบางจุด (สะกดผิด/คำที่ไม่มีจริง) รอบนี้ให้ทำหน้าที่บรรณาธิการแก้เฉพาะภาษา
+// ล้มเหลวหรือไม่ผ่านการตรวจโครงสร้าง = คืน null ให้ใช้ต้นฉบับ (ไม่ทำให้การสร้างดวงล้มเพราะรอบนี้)
+async function polishThai(text: string): Promise<string | null> {
+  const system = [
+    "คุณคือบรรณาธิการภาษาไทย ตรวจทานข้อความดวงที่ผู้ใช้ส่งมา",
+    "แก้เฉพาะ: คำที่ไม่ใช่ภาษาไทยจริงหรือไม่มีความหมาย คำสะกดผิด และประโยคที่ฟังไม่เป็นธรรมชาติ ให้เป็นภาษาไทยที่ถูกต้องและอ่านลื่น",
+    "ต้องคงรูปแบบ 5 บรรทัดและป้ายกำกับเดิมทุกตัว (ภาพรวม: ความรัก: การงาน: การเงิน: ข้อแนะนำ:) คงความหมายและความยาวใกล้เคียงเดิม ห้ามเพิ่มหรือตัดเนื้อหาสำคัญ",
+    "ห้ามใช้ markdown ห้ามอธิบายสิ่งที่แก้ ตอบเฉพาะข้อความที่แก้แล้วเท่านั้น",
+  ].join("\n");
+  const out = await chatViaOpenRouter(
+    [
+      { role: "system", content: system },
+      { role: "user", content: text },
+    ],
+    900,
+    undefined,
+    15_000,
+    0.2
+  );
+  const cleaned = out?.replace(/\*\*|^#+\s*/gm, "").trim();
+  if (!cleaned) return null;
+  return acceptPolished(text, cleaned) ? cleaned : null;
 }
 
 // ---------- ดวงเฉพาะเรื่อง/เฉพาะช่วงเวลา (ใช้ร่วมกันได้หลายหัวข้อใน /duang/[slug]) ----------
@@ -457,7 +513,7 @@ export async function generateFaceReading(imageDataUrl: string): Promise<FaceRea
     const remaining = 24_000 - (Date.now() - startedAt); // เหลือเวลาให้ route คืน coin ถ้าล้มเหลว
     if (remaining < 2_500) break;
     try {
-      const text = await callOpenRouter(model, messages, 1600, remaining, visionProv);
+      const text = await callOpenRouter(model, messages, 1600, remaining, visionProv, 0.3);
       const outcome = normalizeFaceReading(extractJson(text));
       if (outcome) return outcome;
     } catch (e) {
