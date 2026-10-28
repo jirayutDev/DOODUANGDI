@@ -531,9 +531,34 @@ function OAuthButton({ provider, label, next }: { provider: LoginProvider; label
       type="button"
       variant="outline"
       onClick={handleClick}
-      className="h-auto min-h-[50px] rounded border-[#4A4080] bg-transparent text-base text-foreground hover:bg-card"
+      className="h-auto min-h-[50px] gap-3 rounded border-[#4A4080] bg-transparent text-base text-foreground hover:bg-card"
     >
+      {provider === "google" ? <GoogleIcon /> : <LineIcon />}
       {label}
     </Button>
+  );
+}
+
+// ไอคอนแบรนด์วาดด้วย SVG ในไฟล์ (ไม่พึ่งไฟล์รูป) สีตามแนวทางของแต่ละแบรนด์
+function GoogleIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 48 48" className="size-5 shrink-0">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+function LineIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 shrink-0">
+      <rect width="24" height="24" rx="5" fill="#06C755" />
+      <path
+        fill="#fff"
+        d="M12 5C8.13 5 5 7.45 5 10.47c0 2.71 2.5 4.98 5.88 5.41.23.05.54.15.62.35.07.18.04.46.02.64l-.1.6c-.03.18-.14.7.62.38.76-.32 4.1-2.42 5.6-4.14C18.65 12.6 19 11.58 19 10.47 19 7.45 15.87 5 12 5z"
+      />
+    </svg>
   );
 }
