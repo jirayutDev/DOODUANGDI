@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   let result: Awaited<ReturnType<typeof generateLoveMatch>>;
   try {
-    result = await generateLoveMatch(you, partner);
+    result = await generateLoveMatch(you, partner, charge.userId);
   } catch {
     result = null;
   }

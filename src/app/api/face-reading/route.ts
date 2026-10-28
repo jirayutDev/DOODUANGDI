@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   let outcome: Awaited<ReturnType<typeof generateFaceReading>>;
   try {
-    outcome = await generateFaceReading(image);
+    outcome = await generateFaceReading(image, charge.userId);
   } catch {
     await charge.refund();
     return NextResponse.json({ error: "อ่านโหงวเฮ้งไม่สำเร็จ ลองใหม่อีกครั้งนะ" }, { status: 503 });

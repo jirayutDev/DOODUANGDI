@@ -1,4 +1,6 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
+import { activeFilters, cleanText, escapeLike, pickOne } from "@/lib/admin-filters";
+import { FilterBar } from "@/components/admin/filter-bar";
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin";
 import { adminBase } from "@/lib/admin-path";
@@ -16,11 +18,19 @@ const KINDS = [
   { kind: "monthly", label: "รายเดือน" },
 ] as const;
 
-export default async function AdminHoroscopesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+export default async function AdminHoroscopesPage({ searchParams }: { searchParams: Promise<{ page?: string; kind?: string; complete?: string; q?: string }> }) {
   await requireAdminPage();
-  const page = parsePage((await searchParams).page);
+  const sp = await searchParams;
+  const page = parsePage(sp.page);
   const base = adminBase() === "/" ? "" : adminBase();
   const total = ZODIAC_SIGN_NAMES.length;
+
+  const kindF = pickOne(sp.kind, ["daily", "weekly", "monthly"] as const);
+  const complete = pickOne(sp.complete, ["full", "partial"] as const);
+  const q = cleanText(sp.q, 20);
+  const where = and(kindF ? eq(scheduledHoroscopes.kind, kindF) : undefined, q ? ilike(scheduledHoroscopes.periodKey, `${escapeLike(q)}%`) : undefined);
+  const having = complete === "full" ? sql`count(*) = ${total}` : complete === "partial" ? sql`count(*) <> ${total}` : undefined;
+  const filters = activeFilters({ kind: kindF, complete, q });
 
   const db = getDb();
   const groupCols = [scheduledHoroscopes.kind, scheduledHoroscopes.periodKey] as const;
@@ -39,11 +49,15 @@ export default async function AdminHoroscopesPage({ searchParams }: { searchPara
     db
       .select({ kind: scheduledHoroscopes.kind, periodKey: scheduledHoroscopes.periodKey, n: count() })
       .from(scheduledHoroscopes)
+      .where(where)
       .groupBy(...groupCols)
+      .having(having)
       .orderBy(desc(scheduledHoroscopes.periodKey), scheduledHoroscopes.kind)
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
-    db.select({ n: count() }).from(db.selectDistinct({ kind: scheduledHoroscopes.kind, periodKey: scheduledHoroscopes.periodKey }).from(scheduledHoroscopes).as("g")),
+    db
+      .select({ n: count() })
+      .from(db.select({ kind: scheduledHoroscopes.kind, periodKey: scheduledHoroscopes.periodKey }).from(scheduledHoroscopes).where(where).groupBy(...groupCols).having(having).as("g")),
   ]);
 
   return (
@@ -69,6 +83,29 @@ export default async function AdminHoroscopesPage({ searchParams }: { searchPara
       </div>
 
       <h2 className="mt-8 mb-2 text-lg font-bold">ประวัติการสร้าง</h2>
+      <FilterBar
+        path={`${base}/horoscopes`}
+        values={filters}
+        fields={[
+          {
+            name: "kind",
+            label: "ชนิด",
+            type: "select",
+            options: [{ value: "", label: "ทั้งหมด" }, ...KINDS.map((k) => ({ value: k.kind, label: k.label }))],
+          },
+          {
+            name: "complete",
+            label: "ความครบ",
+            type: "select",
+            options: [
+              { value: "", label: "ทั้งหมด" },
+              { value: "full", label: `ครบ ${total} ราศี` },
+              { value: "partial", label: "ไม่ครบ" },
+            ],
+          },
+          { name: "q", label: "ช่วงเวลาขึ้นต้นด้วย", type: "text", placeholder: "เช่น 2026-10" },
+        ]}
+      />
       <DataTable>
         <thead>
           <tr>
@@ -93,10 +130,10 @@ export default async function AdminHoroscopesPage({ searchParams }: { searchPara
               <Td>{r.n === total ? <StatusBadge tone="success">ครบ</StatusBadge> : <StatusBadge tone="warning">ไม่ครบ</StatusBadge>}</Td>
             </Tr>
           ))}
-          {history.length === 0 && <EmptyRow cols={4}>ยังไม่มีข้อมูล</EmptyRow>}
+          {history.length === 0 && <EmptyRow cols={4}>{Object.keys(filters).length ? "ไม่พบรายการตามตัวกรอง" : "ยังไม่มีข้อมูล"}</EmptyRow>}
         </tbody>
       </DataTable>
-      <Pagination page={page} total={groups} path={`${base}/horoscopes`} />
+      <Pagination page={page} total={groups} path={`${base}/horoscopes`} params={filters} />
     </AdminShell>
   );
 }

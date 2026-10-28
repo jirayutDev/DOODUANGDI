@@ -1,3 +1,4 @@
+import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -32,21 +33,60 @@ export function Panel({ title, children, className }: { title?: string; children
   );
 }
 
-export function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+export function StatTile({ label, value, hint, delta }: { label: string; value: string; hint?: string; delta?: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-bold text-primary">{value}</p>
+      {delta && <div className="mt-0.5">{delta}</div>}
       {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
 
-// ตารางเลื่อนแนวนอนได้บนจอเล็ก หัวตารางชัด แถวมีเส้นคั่นและไฮไลต์เมื่อชี้
+// ตารางหลังบ้าน: จอใหญ่เป็นตารางปกติ (เลื่อนข้างได้ถ้ากว้างเกิน) จอมือถือ (< 768px) เปลี่ยนแต่ละแถวเป็น "การ์ด" ไม่ต้องเลื่อนข้าง
+// ป้ายหัวคอลัมน์ถูกส่งต่อให้แต่ละเซลล์อัตโนมัติ (data-label) จาก <Th> ใน <thead> จึงไม่ต้องแก้ทุกหน้า สไตล์การ์ดอยู่ที่ .admin-cards ใน globals.css
+function textOf(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (isValidElement(node)) return textOf((node.props as { children?: ReactNode }).children);
+  return "";
+}
+
+function headerLabels(children: ReactNode): string[] {
+  for (const part of Children.toArray(children)) {
+    if (!isValidElement(part) || part.type !== "thead") continue;
+    for (const tr of Children.toArray((part.props as { children?: ReactNode }).children)) {
+      if (!isValidElement(tr)) continue;
+      return Children.toArray((tr.props as { children?: ReactNode }).children)
+        .filter(isValidElement)
+        .map((th) => textOf((th.props as { children?: ReactNode }).children).trim());
+    }
+  }
+  return [];
+}
+
+function labelRows(children: ReactNode, labels: string[]): ReactNode {
+  return Children.map(children, (part) => {
+    if (!isValidElement(part) || part.type !== "tbody") return part;
+    const rows = Children.map((part.props as { children?: ReactNode }).children, (row) => {
+      if (!isValidElement(row) || row.type !== Tr) return row;
+      let i = 0;
+      const cells = Children.toArray((row.props as { children?: ReactNode }).children).map((cell) => {
+        if (!isValidElement(cell) || cell.type !== Td) return cell;
+        const label = labels[i++];
+        return label ? cloneElement(cell as ReactElement<{ label?: string }>, { label }) : cell;
+      });
+      return cloneElement(row as ReactElement<{ children?: ReactNode }>, {}, cells);
+    });
+    return cloneElement(part as ReactElement<{ children?: ReactNode }>, {}, rows);
+  });
+}
+
 export function DataTable({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("admin-scroll overflow-x-auto rounded-xl border border-border bg-card", className)}>
-      <table className="w-full min-w-[640px] border-collapse text-left text-sm">{children}</table>
+    <div className={cn("admin-scroll admin-cards overflow-x-auto rounded-xl border border-border bg-card", className)}>
+      <table className="w-full min-w-[640px] border-collapse text-left text-sm">{labelRows(children, headerLabels(children))}</table>
     </div>
   );
 }
@@ -63,8 +103,12 @@ export function Tr({ children, muted }: { children: React.ReactNode; muted?: boo
   return <tr className={cn("border-b border-border/70 last:border-0 hover:bg-white/[0.03]", muted && "opacity-50")}>{children}</tr>;
 }
 
-export function Td({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <td className={cn("px-4 py-3 align-middle", className)}>{children}</td>;
+export function Td({ children, className, label }: { children?: React.ReactNode; className?: string; label?: string }) {
+  return (
+    <td data-label={label} className={cn("px-4 py-3 align-middle", className)}>
+      {children}
+    </td>
+  );
 }
 
 export function EmptyRow({ cols, children }: { cols: number; children: React.ReactNode }) {
@@ -126,7 +170,7 @@ export function Pagination({
   const from = total === 0 ? 0 : (current - 1) * perPage + 1;
   const to = Math.min(current * perPage, total);
   const href = (p: number) => withParams(path, { ...params, page: p > 1 ? p : undefined });
-  const btn = "inline-flex min-w-9 items-center justify-center rounded-lg border px-2.5 py-1.5 text-sm";
+  const btn = "inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border px-3 py-1.5 text-sm";
 
   return (
     <nav aria-label="เปลี่ยนหน้า" className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">

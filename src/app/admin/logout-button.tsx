@@ -8,7 +8,7 @@ export function LogoutButton() {
     window.location.href = `${window.location.pathname.replace(/\/$/, "")}/login`;
   }
   return (
-    <Button variant="ghost" size="sm" onClick={logout}>
+    <Button variant="ghost" size="sm" className="min-h-10" onClick={logout}>
       ออกจากระบบ
     </Button>
   );

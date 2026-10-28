@@ -1,4 +1,6 @@
-import { count, desc } from "drizzle-orm";
+import { and, count, desc, eq, gt, ilike, isNull, lte, or, sql } from "drizzle-orm";
+import { activeFilters, cleanText, escapeLike, pickOne } from "@/lib/admin-filters";
+import { FilterBar } from "@/components/admin/filter-bar";
 import { requireAdminPage } from "@/lib/admin";
 import { getDb } from "@/db";
 import { coinCodes } from "@/db/schema";
@@ -13,15 +15,31 @@ function isExpired(d: Date | null): boolean {
   return !!d && d.getTime() < Date.now();
 }
 
-export default async function AdminCodesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+const STATES = ["active", "off", "expired", "used"] as const;
+
+export default async function AdminCodesPage({ searchParams }: { searchParams: Promise<{ page?: string; q?: string; state?: string }> }) {
   await requireAdminPage();
-  const page = parsePage((await searchParams).page);
+  const sp = await searchParams;
+  const page = parsePage(sp.page);
   const base = adminBase() === "/" ? "" : adminBase();
+
+  const q = cleanText(sp.q);
+  const state = pickOne(sp.state, STATES);
+  const now = sql`now()`;
+  const live = and(eq(coinCodes.active, true), or(isNull(coinCodes.expiresAt), gt(coinCodes.expiresAt, now)));
+  const where = and(
+    q ? ilike(coinCodes.code, `%${escapeLike(q)}%`) : undefined,
+    state === "off" ? eq(coinCodes.active, false) : undefined,
+    state === "expired" ? and(eq(coinCodes.active, true), lte(coinCodes.expiresAt, now)) : undefined,
+    state === "used" ? and(eq(coinCodes.active, true), or(isNull(coinCodes.expiresAt), gt(coinCodes.expiresAt, now)), sql`${coinCodes.usedCount} >= ${coinCodes.maxUses}`) : undefined,
+    state === "active" ? and(live, sql`${coinCodes.usedCount} < ${coinCodes.maxUses}`) : undefined
+  );
+  const filters = activeFilters({ q, state });
 
   const db = getDb();
   const [[{ n: total }], rows] = await Promise.all([
-    db.select({ n: count() }).from(coinCodes),
-    db.select().from(coinCodes).orderBy(desc(coinCodes.createdAt)).limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE),
+    db.select({ n: count() }).from(coinCodes).where(where),
+    db.select().from(coinCodes).where(where).orderBy(desc(coinCodes.createdAt)).limit(PAGE_SIZE).offset((page - 1) * PAGE_SIZE),
   ]);
 
   return (
@@ -31,6 +49,25 @@ export default async function AdminCodesPage({ searchParams }: { searchParams: P
           <CodeForm />
         </div>
       </Panel>
+      <FilterBar
+        path={`${base}/codes`}
+        values={filters}
+        fields={[
+          { name: "q", label: "ค้นหาโค้ด", type: "text", placeholder: "ส่วนหนึ่งของโค้ด" },
+          {
+            name: "state",
+            label: "สถานะ",
+            type: "select",
+            options: [
+              { value: "", label: "ทั้งหมด" },
+              { value: "active", label: "ใช้งานได้" },
+              { value: "off", label: "ปิดอยู่" },
+              { value: "expired", label: "หมดอายุ" },
+              { value: "used", label: "ใช้ครบแล้ว" },
+            ],
+          },
+        ]}
+      />
       <DataTable>
         <thead>
           <tr>
@@ -65,10 +102,10 @@ export default async function AdminCodesPage({ searchParams }: { searchParams: P
               </Tr>
             );
           })}
-          {rows.length === 0 && <EmptyRow cols={6}>ยังไม่มีโค้ด</EmptyRow>}
+          {rows.length === 0 && <EmptyRow cols={6}>{Object.keys(filters).length ? "ไม่พบรายการตามตัวกรอง" : "ยังไม่มีโค้ด"}</EmptyRow>}
         </tbody>
       </DataTable>
-      <Pagination page={page} total={total} path={`${base}/codes`} />
+      <Pagination page={page} total={total} path={`${base}/codes`} params={filters} />
     </AdminShell>
   );
 }

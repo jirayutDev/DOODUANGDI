@@ -268,3 +268,74 @@
 .admin-scroll::-webkit-scrollbar-thumb:hover {
   background: #6a5fb0;
 }
+
+/* ตารางหลังบ้านบนมือถือ: แต่ละแถวเป็นการ์ด ป้ายหัวคอลัมน์มาจาก data-label ของเซลล์ (ดู DataTable ใน components/admin/ui.tsx) */
+@media (max-width: 767px) {
+  .admin-cards {
+    overflow-x: visible;
+    border: 0;
+    background: transparent;
+  }
+  .admin-cards table,
+  .admin-cards tbody,
+  .admin-cards tr,
+  .admin-cards td {
+    display: block;
+    width: 100%;
+  }
+  .admin-cards table {
+    min-width: 0 !important;
+  }
+  /* หัวตารางซ่อนด้วยสายตาแต่ยังอยู่ให้โปรแกรมอ่านหน้าจอ */
+  .admin-cards thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .admin-cards tbody tr {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--card);
+  }
+  .admin-cards td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.4rem 0 !important;
+    text-align: right;
+    border-bottom: 1px solid color-mix(in oklab, var(--border) 50%, transparent);
+  }
+  .admin-cards td:last-child {
+    border-bottom: 0;
+  }
+  .admin-cards td[data-label]::before {
+    content: attr(data-label);
+    flex: none;
+    max-width: 45%;
+    text-align: left;
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+  }
+  /* เซลล์ที่เป็นปุ่ม (คอลัมน์จัดการ) ให้ปุ่มเต็มแถวแตะง่าย */
+  .admin-cards td button,
+  .admin-cards td a.btn {
+    min-height: 2.5rem;
+    padding-inline: 1rem;
+  }
+  /* ลิงก์ในการ์ด (รหัสผู้ใช้, ดู/จัดการ) ให้พื้นที่แตะสูงพอ */
+  .admin-cards td a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
+  }
+  .admin-cards td > div {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}

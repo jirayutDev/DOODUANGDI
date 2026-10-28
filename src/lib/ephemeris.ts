@@ -256,6 +256,55 @@ function moonPhaseDates(start: Date, days: number): string[] {
  * - weekly: `date` is the first day of the 7-day window; adds changes during it
  * - monthly: positions at the start of the Thai month containing `date`, plus the month's events
  */
+// เรือนที่ 1-12 นับจากราศีของผู้อ่านเป็นเรือน 1 (whole sign) พร้อมเรื่องในชีวิตที่เรือนนั้นดูแล
+const HOUSE_THEME = [
+  "ตัวตนและสุขภาพ",
+  "เงินและของมีค่า",
+  "การพูดคุย การสื่อสาร การเดินทางใกล้ๆ",
+  "บ้านและครอบครัว",
+  "ความรัก ความสนุก งานอดิเรก",
+  "งานประจำ สุขภาพ ภาระที่ต้องรับผิดชอบ",
+  "คู่ครอง หุ้นส่วน ความสัมพันธ์ใกล้ชิด",
+  "เงินก้อนที่เกี่ยวกับคนอื่น ความกังวล การเปลี่ยนแปลง",
+  "โชค การเรียนรู้ เดินทางไกล",
+  "หน้าที่การงานและชื่อเสียง",
+  "รายได้ เพื่อนฝูง เป้าหมาย",
+  "การพักผ่อน ค่าใช้จ่ายแอบแฝง การปลีกตัว",
+];
+
+const BODY_THEME: Record<SkyBody, string> = {
+  Sun: "พลังและความมั่นใจ",
+  Moon: "อารมณ์และความรู้สึก",
+  Mercury: "การสื่อสาร เอกสาร การตัดสินใจ",
+  Venus: "ความรัก เงิน ความสุขใจ",
+  Mars: "แรงขับ การลงมือทำ อารมณ์ร้อน",
+  Jupiter: "โชคและโอกาส",
+  Saturn: "ความรับผิดชอบ ความล่าช้า บทเรียน",
+};
+
+// เหตุการณ์ของฟ้าเทียบกับราศีของผู้อ่านโดยเฉพาะ (ดาวแต่ละดวงอยู่เรือนไหนของราศีนี้ = กระทบเรื่องอะไรในชีวิต)
+// ทำให้คำทำนายแต่ละราศีต่างกันตามฟ้าจริงและอ้างชื่อดาวพร้อมผลต่อชีวิตได้ ไม่ใช่ข้อความกลางๆ เหมือนกันทุกราศี
+export function summarizeSkyForSign(date: Date, kind: "daily" | "weekly" | "monthly", sign: string): string | undefined {
+  const idx = ZODIAC_SIGN_NAMES.indexOf(sign);
+  if (idx < 0) return undefined;
+  let at: Date;
+  if (kind === "monthly") {
+    const t = new Date(date.getTime() + THAI_OFFSET_MS);
+    at = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1, 5));
+  } else {
+    at = thaiNoon(date);
+  }
+  const sky = getSkyForDate(at);
+  const order: SkyBody[] = ["Saturn", "Jupiter", "Mars", "Venus", "Mercury", "Sun", "Moon"];
+  const lines = order.map((k) => {
+    const b = sky.bodies[k];
+    const house = ((b.siderealSignIndex - idx + 12) % 12) + 1;
+    const where = house === 1 ? `อยู่ในราศี${sign}เอง` : `อยู่เรือน ${house} ของราศี${sign}`;
+    return `${BODY_NAMES_TH[k]}${b.retrograde ? "(ถอยหลัง)" : ""} ${where} = ${HOUSE_THEME[house - 1]} (${BODY_NAMES_TH[k]}คือ${BODY_THEME[k]})`;
+  });
+  return `ดาวเทียบกับราศี${sign} (ใช้ชี้ว่าเรื่องไหนในชีวิตของคนราศีนี้ได้รับผล):\n${lines.join("\n")}`;
+}
+
 export function summarizeSkyForPrompt(date: Date, kind: "daily" | "weekly" | "monthly"): string {
   let lines: string[];
   if (kind === "daily") {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { confirmModal } from "@/components/confirm-dialog";
 import { coinsToBaht } from "@/lib/booking";
 
 // บันทึกว่าโอนเงินให้หมอดูแล้ว: กรอกจำนวน coin ที่หัก (ค่าเริ่มต้นคือยอดคงเหลือทั้งหมด แก้เป็นบางส่วนได้)
@@ -21,7 +22,12 @@ export function PayoutForm({ morDuId, balance, rate }: { morDuId: string; balanc
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return toast.error("จำนวน coin ต้องเป็นจำนวนเต็มและไม่เกินยอดคงเหลือ");
-    if (!window.confirm(`บันทึกว่าโอนให้หมอดูแล้ว: หัก ${n.toLocaleString("th-TH")} coin (โอนประมาณ ฿${coinsToBaht(n, rate).toLocaleString("th-TH")})? (ทำย้อนกลับไม่ได้)`)) return;
+    const r = await confirmModal({
+      title: "บันทึกว่าโอนให้หมอดูแล้ว?",
+      message: `หัก ${n.toLocaleString("th-TH")} coin (โอนประมาณ ฿${coinsToBaht(n, rate).toLocaleString("th-TH")})\nเลขอ้างอิง: ${note.trim()}\nทำย้อนกลับไม่ได้`,
+      confirmLabel: "บันทึกโอนแล้ว",
+    });
+    if (!r.confirmed) return;
     setBusy(true);
     try {
       const res = await fetch("/api/admin/payouts", {

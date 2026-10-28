@@ -247,6 +247,25 @@ export const appSettings = pgTable("app_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// บันทึกการเรียก AI ทุกครั้ง (ฟีเจอร์ โมเดล โทเค็น ต้นทุน) ใช้คิดต้นทุนเทียบรายได้ต่อฟีเจอร์ในหลังบ้าน ไม่เก็บข้อความหรือรูปของผู้ใช้
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    feature: text("feature").notNull(), // chat | reading-summary | topic-reading | face-reading | love-match | horoscope
+    userId: uuid("user_id"), // ผู้ใช้ที่ทำให้เกิดการเรียก (ดวงล่วงหน้าจากระบบ = ว่าง)
+    model: text("model").notNull(),
+    provider: text("provider").notNull(), // โฮสต์ของผู้ให้บริการ เช่น api.maxplus-ai.cc
+    ok: boolean("ok").notNull(), // false = เรียกแล้วล้มเหลว/ตอบไม่ครบ (ไม่มีโทเค็น)
+    promptTokens: integer("prompt_tokens").notNull().default(0),
+    completionTokens: integer("completion_tokens").notNull().default(0),
+    costMicroUsd: integer("cost_micro_usd"), // ต้นทุนเป็นไมโครดอลลาร์ (1,000,000 = 1 USD) ว่าง = ยังไม่รู้ราคาโมเดลนี้
+    ms: integer("ms").notNull().default(0), // เวลาที่ใช้ (มิลลิวินาที)
+  },
+  (t) => [index("ai_usage_created_idx").on(t.createdAt.desc()), index("ai_usage_feature_idx").on(t.feature, t.createdAt.desc())]
+);
+
 export const profilesRelations = relations(profiles, ({ many }) => ({
   chatMessages: many(chatMessages),
   muBookEntries: many(muBookEntries),

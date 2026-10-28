@@ -7,7 +7,7 @@ export default async function AdminPricingPage() {
   await requireAdminPage();
   const pricing = await getPricing();
   return (
-    <AdminShell title="ตั้งราคา" description="แพ็กเกจเติม coin โปรโมชันการเติม ราคาแต่ละบริการ coin ต้อนรับ และค่าบริการ/อัตราแลก coin ของคิวหมอดู">
+    <AdminShell title="ตั้งราคา" description="แก้ราคา แพ็กเกจ โปรโมชัน และต้นทุน แล้วกดบันทึกที่แถบด้านล่าง ผู้ใช้เห็นภายใน 30 วินาที">
       <PricingForm initial={pricing} />
     </AdminShell>
   );

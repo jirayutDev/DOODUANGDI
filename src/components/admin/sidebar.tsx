@@ -7,6 +7,7 @@ import {
   Banknote,
   CalendarCheck,
   CalendarClock,
+  Cpu,
   CreditCard,
   LayoutDashboard,
   ListOrdered,
@@ -31,6 +32,7 @@ const ITEMS = [
   { href: "/bookings", label: "การจองคิวหมอดู", icon: CalendarCheck },
   { href: "/payouts", label: "โอนเงินหมอดู", icon: Banknote },
   { href: "/horoscopes", label: "ดวงที่สร้างล่วงหน้า", icon: CalendarClock },
+  { href: "/ai-usage", label: "ต้นทุน AI", icon: Cpu },
   { href: "/pricing", label: "ตั้งราคา", icon: Tag },
 ] as const;
 

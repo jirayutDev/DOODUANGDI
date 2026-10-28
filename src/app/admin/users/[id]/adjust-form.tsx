@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { confirmModal } from "@/components/confirm-dialog";
 
 const field = "h-11 w-full rounded-xl bg-cream px-3 text-base text-ink outline-none placeholder:text-ink/40";
 
@@ -17,7 +18,13 @@ export function AdjustForm({ userId }: { userId: string }) {
     e.preventDefault();
     const n = Number(amount);
     if (!Number.isInteger(n) || n === 0) return toast.error("ใส่จำนวนเต็มที่ไม่ใช่ 0 (บวก = เพิ่ม, ลบ = หัก)");
-    if (!window.confirm(`${n > 0 ? "เพิ่ม" : "หัก"} ${Math.abs(n)} coin ให้ผู้ใช้นี้?`)) return;
+    const r = await confirmModal({
+      title: `${n > 0 ? "เพิ่ม" : "หัก"} ${Math.abs(n).toLocaleString("th-TH")} coin ให้ผู้ใช้นี้?`,
+      message: `เหตุผล: ${reason.trim()}`,
+      confirmLabel: n > 0 ? "เพิ่ม coin" : "หัก coin",
+      tone: n > 0 ? "default" : "danger",
+    });
+    if (!r.confirmed) return;
     setBusy(true);
     try {
       const res = await fetch("/api/admin/users/adjust", {

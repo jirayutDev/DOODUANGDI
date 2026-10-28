@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lt, or, sql } from "drizzle-orm";
+import { activeFilters, cleanText, escapeLike, pickOne, thaiDayEndExclusive, thaiDayStart } from "@/lib/admin-filters";
+import { FilterBar } from "@/components/admin/filter-bar";
 import { requireAdminPage } from "@/lib/admin";
 import { adminBase } from "@/lib/admin-path";
 import { getDb } from "@/db";
@@ -12,21 +14,40 @@ import { RefundButton } from "./refund-button";
 const STATUSES = ["requested", "accepted", "paid", "completed", "declined", "cancelled"] as const;
 type Status = (typeof STATUSES)[number];
 
-export default async function AdminBookingsPage({ searchParams }: { searchParams: Promise<{ status?: string; page?: string }> }) {
+type Sp = { status?: string; page?: string; q?: string; from?: string; to?: string; dur?: string; min?: string };
+const DURATIONS = ["15", "30", "45", "60"] as const;
+const MIN_PRICES = ["50", "200", "500"] as const;
+
+export default async function AdminBookingsPage({ searchParams }: { searchParams: Promise<Sp> }) {
   await requireAdminPage();
   const sp = await searchParams;
   const status: Status = STATUSES.find((s) => s === sp.status) ?? "paid";
   const page = parsePage(sp.page);
   const base = adminBase() === "/" ? "" : adminBase();
 
+  const q = cleanText(sp.q);
+  const dur = pickOne(sp.dur, DURATIONS);
+  const min = pickOne(sp.min, MIN_PRICES);
+  const from = thaiDayStart(sp.from) ? sp.from : undefined;
+  const to = thaiDayEndExclusive(sp.to) ? sp.to : undefined;
+  const where = and(
+    eq(bookings.status, status),
+    q ? or(ilike(morDus.displayName, `%${escapeLike(q)}%`), sql`${bookings.customerId}::text ilike ${`${escapeLike(q)}%`}`) : undefined,
+    from ? gte(bookings.startsAt, thaiDayStart(from)!) : undefined,
+    to ? lt(bookings.startsAt, thaiDayEndExclusive(to)!) : undefined,
+    dur ? eq(bookings.durationMin, Number(dur)) : undefined,
+    min ? gte(bookings.priceCoins, Number(min)) : undefined
+  );
+  const filters = activeFilters({ q, from, to, dur, min });
+
   const db = getDb();
   const [[{ n: total }], rows, counts] = await Promise.all([
-    db.select({ n: count() }).from(bookings).where(eq(bookings.status, status)),
+    db.select({ n: count() }).from(bookings).leftJoin(morDus, eq(morDus.userId, bookings.morDuId)).where(where),
     db
       .select({ b: bookings, name: morDus.displayName })
       .from(bookings)
       .leftJoin(morDus, eq(morDus.userId, bookings.morDuId))
-      .where(eq(bookings.status, status))
+      .where(where)
       .orderBy(desc(bookings.startsAt))
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
@@ -41,6 +62,28 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
         param="status"
         current={status}
         options={STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s].label, count: countOf(s) }))}
+      />
+      <FilterBar
+        path={`${base}/bookings`}
+        values={filters}
+        keep={{ status }}
+        fields={[
+          { name: "q", label: "ค้นหาหมอดู / รหัสลูกค้า", type: "text", placeholder: "ชื่อหมอดู หรือ 8 ตัวแรกของรหัส" },
+          { name: "from", label: "เวลานัดตั้งแต่", type: "date" },
+          { name: "to", label: "เวลานัดถึง", type: "date" },
+          {
+            name: "dur",
+            label: "ความยาวคิว",
+            type: "select",
+            options: [{ value: "", label: "ทั้งหมด" }, ...DURATIONS.map((d) => ({ value: d, label: `${d} นาที` }))],
+          },
+          {
+            name: "min",
+            label: "ราคาขั้นต่ำ",
+            type: "select",
+            options: [{ value: "", label: "ทั้งหมด" }, ...MIN_PRICES.map((m) => ({ value: m, label: `≥ ${m} coin` }))],
+          },
+        ]}
       />
       <DataTable className="[&_table]:min-w-[900px]">
         <thead>
@@ -93,10 +136,10 @@ export default async function AdminBookingsPage({ searchParams }: { searchParams
               </Tr>
             );
           })}
-          {rows.length === 0 && <EmptyRow cols={9}>ไม่มีรายการในสถานะนี้</EmptyRow>}
+          {rows.length === 0 && <EmptyRow cols={9}>{Object.keys(filters).length ? "ไม่พบรายการตามตัวกรอง" : "ไม่มีรายการในสถานะนี้"}</EmptyRow>}
         </tbody>
       </DataTable>
-      <Pagination page={page} total={total} path={`${base}/bookings`} params={{ status }} />
+      <Pagination page={page} total={total} path={`${base}/bookings`} params={{ status, ...filters }} />
     </AdminShell>
   );
 }

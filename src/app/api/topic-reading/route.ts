@@ -91,13 +91,16 @@ export async function POST(req: NextRequest) {
 
   let reading: string | null;
   try {
-    reading = await generateTopicReading({
-      topicName: config.topicName,
-      timeframe: config.timeframe,
-      profile,
-      partnerZodiac,
-      extraRule: config.extraRule,
-    });
+    reading = await generateTopicReading(
+      {
+        topicName: config.topicName,
+        timeframe: config.timeframe,
+        profile,
+        partnerZodiac,
+        extraRule: config.extraRule,
+      },
+      charge.userId
+    );
   } catch {
     reading = null;
   }

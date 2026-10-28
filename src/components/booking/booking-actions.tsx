@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { confirmModal } from "@/components/confirm-dialog";
 import { handleCoinError } from "@/lib/coin-client";
 
 export interface BookingLite {
@@ -49,7 +50,12 @@ export function CustomerBookingActions({ booking }: { booking: BookingLite }) {
   const { busy, run } = useAction();
 
   async function pay() {
-    if (!window.confirm(`ชำระด้วย ${booking.priceCoins.toLocaleString("th-TH")} coin? ระบบหัก coin จากกระเป๋าของคุณทันที`)) return;
+    const r = await confirmModal({
+      title: `ชำระด้วย ${booking.priceCoins.toLocaleString("th-TH")} coin?`,
+      message: "ระบบหัก coin จากกระเป๋าของคุณทันที และลิงก์ห้อง Google Meet จะแสดงในหน้านี้",
+      confirmLabel: "ชำระด้วย coin",
+    });
+    if (!r.confirmed) return;
     try {
       const res = await fetch(`/api/bookings/${booking.id}/pay`, { method: "POST" });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -78,7 +84,10 @@ export function CustomerBookingActions({ booking }: { booking: BookingLite }) {
         <Button
           variant="ghost"
           disabled={!!busy}
-          onClick={() => window.confirm("ยกเลิกคิวนี้?") && run("cancel", async () => { await post(`/api/bookings/${booking.id}/cancel`); return "ยกเลิกแล้ว"; })}
+          onClick={async () => {
+            const r = await confirmModal({ title: "ยกเลิกคิวนี้?", confirmLabel: "ยกเลิกคิว", cancelLabel: "ไม่ยกเลิก", tone: "danger" });
+            if (r.confirmed) run("cancel", async () => { await post(`/api/bookings/${booking.id}/cancel`); return "ยกเลิกแล้ว"; });
+          }}
           className="h-auto min-h-[44px] rounded-[14px]"
         >
           ยกเลิกคิว
@@ -109,7 +118,10 @@ export function MorDuBookingActions({ booking }: { booking: BookingLite }) {
   }
   if (booking.status === "accepted") {
     return (
-      <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => window.confirm("ยกเลิกคิวนี้?") && run("cancel", async () => { await post(`/api/bookings/${booking.id}/cancel`); return "ยกเลิกแล้ว"; })}>
+      <Button size="sm" variant="ghost" disabled={!!busy} onClick={async () => {
+        const r = await confirmModal({ title: "ยกเลิกคิวนี้?", confirmLabel: "ยกเลิกคิว", cancelLabel: "ไม่ยกเลิก", tone: "danger" });
+        if (r.confirmed) run("cancel", async () => { await post(`/api/bookings/${booking.id}/cancel`); return "ยกเลิกแล้ว"; });
+      }}>
         ยกเลิกคิว
       </Button>
     );
@@ -141,7 +153,10 @@ export function MorDuBookingActions({ booking }: { booking: BookingLite }) {
         <Button
           size="sm"
           disabled={!!busy || !started}
-          onClick={() => window.confirm("ยืนยันว่าให้คำปรึกษาเสร็จแล้ว? รายได้จะเข้ายอดของคุณ") && run("complete", async () => { await post(`/api/bookings/${booking.id}/complete`); return "บันทึกเสร็จสิ้นแล้ว รายได้เข้ายอดของคุณแล้ว"; })}
+          onClick={async () => {
+            const r = await confirmModal({ title: "ให้คำปรึกษาเสร็จแล้วใช่ไหม?", message: "รายได้ coin จะเข้ายอดของคุณ และทำซ้ำไม่ได้", confirmLabel: "เสร็จสิ้น (รับรายได้)" });
+            if (r.confirmed) run("complete", async () => { await post(`/api/bookings/${booking.id}/complete`); return "บันทึกเสร็จสิ้นแล้ว รายได้เข้ายอดของคุณแล้ว"; });
+          }}
         >
           {started ? "เสร็จสิ้น (รับรายได้)" : "ปุ่มเสร็จสิ้นจะเปิดเมื่อถึงเวลานัด"}
         </Button>

@@ -3,15 +3,16 @@ import { getDb } from "@/db";
 import { scheduledHoroscopes } from "@/db/schema";
 import { ZODIAC_SIGN_NAMES } from "@/lib/astrology";
 import { generateZodiacHoroscope } from "@/lib/mu-ai";
-import { summarizeSkyForPrompt } from "@/lib/ephemeris";
+import { summarizeSkyForPrompt, summarizeSkyForSign } from "@/lib/ephemeris";
 
 export type HoroscopeKind = "daily" | "weekly" | "monthly";
 
 // ตำแหน่งดาวจริงของช่วงเวลานั้น คำนวณจาก periodKey (เที่ยงวันเวลาไทย = 05:00 UTC) ถ้าคำนวณไม่ได้ก็ปล่อยให้ AI เขียนโดยไม่มีบริบทดาว
-function skyContextFor(kind: HoroscopeKind, periodKey: string): string | undefined {
+function skyContextFor(kind: HoroscopeKind, periodKey: string, sign: string): string | undefined {
   try {
     const day = kind === "monthly" ? `${periodKey}-01` : periodKey;
-    return summarizeSkyForPrompt(new Date(`${day}T05:00:00Z`), kind);
+    const at = new Date(`${day}T05:00:00Z`);
+    return [summarizeSkyForPrompt(at, kind), summarizeSkyForSign(at, kind, sign)].filter(Boolean).join("\n");
   } catch (e) {
     console.error("ephemeris failed:", e instanceof Error ? e.message : "unknown");
     return undefined;
@@ -110,7 +111,7 @@ async function generateAndStore(kind: HoroscopeKind, sign: string, period: Perio
       periodName: period.name,
       periodLabel: period.label,
       sentences: period.sentences,
-      skyContext: skyContextFor(kind, period.key),
+      skyContext: skyContextFor(kind, period.key, sign),
     });
     if (!content) {
       failedAt.set(flightKey, Date.now());
@@ -174,7 +175,7 @@ export async function generateSign(kind: HoroscopeKind, sign: string, opts: { re
     periodName: period.name,
     periodLabel: period.label,
     sentences: period.sentences,
-    skyContext: skyContextFor(kind, period.key),
+    skyContext: skyContextFor(kind, period.key, sign),
   });
   if (!content) return { period: period.key, sign, status: "failed" as const };
   await getDb()

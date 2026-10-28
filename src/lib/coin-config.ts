@@ -72,6 +72,13 @@ export interface Promotion {
   active: boolean;
 }
 
+// ราคาโมเดล AI (ดอลลาร์ต่อ 1 ล้านโทเค็น) ใช้คำนวณต้นทุนต่อครั้งเมื่อผู้ให้บริการไม่ส่งราคามาให้
+export interface AiPrice {
+  model: string; // ชื่อโมเดลตามที่ใช้เรียก เช่น claude-haiku-4-5-20251001
+  inputPerM: number;
+  outputPerM: number;
+}
+
 // ราคาที่ใช้งานจริง (ค่าเริ่มต้น = ค่าด้านบน ถูกแทนที่ด้วยที่แอดมินตั้ง)
 export interface Pricing {
   costs: Record<FeatureKey, number>;
@@ -80,6 +87,8 @@ export interface Pricing {
   promotions: Promotion[];
   morDuCommissionPercent: number; // ส่วนที่เว็บเก็บจาก coin ของคิวหมอดู (%)
   coinBahtRate: number; // อัตราแปลง coin รายได้หมอดูเป็นบาทตอนโอน (บาทต่อ 1 coin)
+  aiPrices: AiPrice[]; // ราคาโมเดล AI ไว้คิดต้นทุน
+  usdThb: number; // อัตราแลกดอลลาร์เป็นบาท
 }
 
 export const DEFAULT_PRICING: Pricing = {
@@ -89,6 +98,8 @@ export const DEFAULT_PRICING: Pricing = {
   promotions: [],
   morDuCommissionPercent: 20,
   coinBahtRate: 0.7,
+  aiPrices: [],
+  usdThb: 36,
 };
 
 export function isPromoLive(p: Promotion, now = Date.now()): boolean {

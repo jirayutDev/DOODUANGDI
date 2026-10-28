@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   let reply: string | null;
   try {
-    reply = await generateMuReply({ message, profile, card, history });
+    reply = await generateMuReply({ message, profile, card, history }, charge.userId);
   } catch {
     reply = null;
   }

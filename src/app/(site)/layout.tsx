@@ -10,10 +10,10 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <footer className="bg-background pb-[72px] text-sm text-muted-foreground md:pb-0">
         <div className="mx-auto flex max-w-[1120px] flex-wrap justify-between gap-5 border-t border-border px-[18px] pt-[22px] pb-10 md:px-10">
           <span>© 2569 ดูดวงดิ · ดูเพื่อเป็นกำลังใจ ใช้วิจารณญาณประกอบนะ</span>
-          <span className="flex gap-5">
-            <Link href="/contact">ติดต่อเรา</Link>
-            <Link href="/terms">เงื่อนไข</Link>
-            <Link href="/privacy">ความเป็นส่วนตัว</Link>
+          <span className="flex gap-1">
+            <Link href="/contact" className="inline-flex min-h-10 items-center px-2">ติดต่อเรา</Link>
+            <Link href="/terms" className="inline-flex min-h-10 items-center px-2">เงื่อนไข</Link>
+            <Link href="/privacy" className="inline-flex min-h-10 items-center px-2">ความเป็นส่วนตัว</Link>
           </span>
         </div>
       </footer>

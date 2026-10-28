@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { confirmModal } from "@/components/confirm-dialog";
 import { ZODIAC_SIGN_NAMES } from "@/lib/astrology";
 
 type Kind = "daily" | "weekly" | "monthly";
@@ -18,7 +19,14 @@ export function HoroscopeActions({ kind }: { kind: Kind }) {
   const [done, setDone] = useState(0);
 
   async function run(regenerate: boolean) {
-    if (regenerate && !window.confirm("สร้างดวงของช่วงนี้ใหม่ทุกราศี? ผู้ใช้จะเห็นข้อความใหม่ (ถ้าราศีไหนสร้างไม่สำเร็จ ข้อความเดิมยังอยู่)")) return;
+    if (regenerate) {
+      const r = await confirmModal({
+        title: "สร้างดวงของช่วงนี้ใหม่ทุกราศี?",
+        message: "ผู้ใช้จะเห็นข้อความใหม่ ถ้าราศีไหนสร้างไม่สำเร็จ ข้อความเดิมยังอยู่",
+        confirmLabel: "สร้างใหม่ทั้งหมด",
+      });
+      if (!r.confirmed) return;
+    }
     setBusy(regenerate ? "redo" : "fill");
     setDone(0);
     const signs = [...ZODIAC_SIGN_NAMES];

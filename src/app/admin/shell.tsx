@@ -33,7 +33,7 @@ export function FilterTabs({
           aria-selected={current === o.value}
           href={`${base}?${param}=${o.value}`}
           className={cn(
-            "rounded-full border px-3.5 py-1 text-sm",
+            "inline-flex min-h-10 items-center rounded-full border px-4 py-1.5 text-sm",
             current === o.value ? "border-primary bg-primary font-bold text-primary-foreground" : "border-border text-soft-text hover:border-primary"
           )}
         >

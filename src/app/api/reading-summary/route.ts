@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   let summary: string | null;
   try {
-    summary = await generateSpreadSummary({ spreadName: body.spreadName, question, results });
+    summary = await generateSpreadSummary({ spreadName: body.spreadName, question, results }, charge.userId);
   } catch {
     summary = null;
   }

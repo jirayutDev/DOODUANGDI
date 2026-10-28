@@ -1,4 +1,6 @@
-import { count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
+import { activeFilters, cleanText, escapeLike, pickOne } from "@/lib/admin-filters";
+import { FilterBar } from "@/components/admin/filter-bar";
 import { requireAdminPage } from "@/lib/admin";
 import { adminBase } from "@/lib/admin-path";
 import { getDb } from "@/db";
@@ -9,16 +11,41 @@ import { DataTable, EmptyRow, fmtDate, PAGE_SIZE, Pagination, parsePage, Td, Th,
 import { AdminShell } from "../shell";
 import { PayoutForm } from "./payout-form";
 
-export default async function AdminPayoutsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+export default async function AdminPayoutsPage({ searchParams }: { searchParams: Promise<{ page?: string; q?: string; balance?: string; info?: string }> }) {
   await requireAdminPage();
-  const page = parsePage((await searchParams).page);
+  const sp = await searchParams;
+  const page = parsePage(sp.page);
   const base = adminBase() === "/" ? "" : adminBase();
+
+  const q = cleanText(sp.q);
+  const balanceF = pickOne(sp.balance, ["owed", "clear"] as const);
+  const info = pickOne(sp.info, ["filled", "empty"] as const);
+  const filled = sql`coalesce(btrim(${morDus.payoutInfo}), '') <> ''`;
+  const where = and(
+    q ? ilike(morDus.displayName, `%${escapeLike(q)}%`) : undefined,
+    info === "filled" ? filled : undefined,
+    info === "empty" ? sql`not (${filled})` : undefined
+  );
+  const sumAll = sql`coalesce(sum(${morDuLedger.amountCoins}), 0)`;
+  const having = balanceF === "owed" ? sql`${sumAll} > 0` : balanceF === "clear" ? sql`${sumAll} <= 0` : undefined;
+  const filters = activeFilters({ q, balance: balanceF, info });
 
   const pricing = await getPricing();
   const rate = pricing.coinBahtRate;
   const db = getDb();
   const [[{ n: total }], rows, history] = await Promise.all([
-    db.select({ n: count() }).from(morDus),
+    db
+      .select({ n: count() })
+      .from(
+        db
+          .select({ id: morDus.userId })
+          .from(morDus)
+          .leftJoin(morDuLedger, eq(morDuLedger.morDuId, morDus.userId))
+          .where(where)
+          .groupBy(morDus.userId)
+          .having(having)
+          .as("g")
+      ),
     db
       .select({
         userId: morDus.userId,
@@ -30,7 +57,9 @@ export default async function AdminPayoutsPage({ searchParams }: { searchParams:
       })
       .from(morDus)
       .leftJoin(morDuLedger, eq(morDuLedger.morDuId, morDus.userId))
+      .where(where)
       .groupBy(morDus.userId, morDus.displayName, morDus.payoutInfo)
+      .having(having)
       .orderBy(desc(sql`coalesce(sum(${morDuLedger.amountCoins}), 0)`), morDus.displayName)
       .limit(PAGE_SIZE)
       .offset((page - 1) * PAGE_SIZE),
@@ -45,6 +74,33 @@ export default async function AdminPayoutsPage({ searchParams }: { searchParams:
 
   return (
     <AdminShell title="โอนเงินหมอดู" description={`รายได้ของหมอดูเป็น coin (หลังหักค่าบริการเว็บ ${pricing.morDuCommissionPercent}%) ตอนโอนเงินแปลงเป็นบาทที่อัตรา ฿${rate} ต่อ 1 coin (ตั้งได้ที่เมนู "ตั้งราคา") โอนออกนอกระบบตามช่องทางที่หมอดูแจ้ง แล้วบันทึกที่นี่เพื่อหักยอดคงเหลือ`}>
+      <FilterBar
+        path={`${base}/payouts`}
+        values={filters}
+        fields={[
+          { name: "q", label: "ค้นหาชื่อหมอดู", type: "text", placeholder: "ชื่อหมอดู" },
+          {
+            name: "balance",
+            label: "ยอดคงเหลือ",
+            type: "select",
+            options: [
+              { value: "", label: "ทั้งหมด" },
+              { value: "owed", label: "มียอดค้างโอน" },
+              { value: "clear", label: "ไม่มียอดค้าง" },
+            ],
+          },
+          {
+            name: "info",
+            label: "ช่องทางรับเงิน",
+            type: "select",
+            options: [
+              { value: "", label: "ทั้งหมด" },
+              { value: "filled", label: "กรอกแล้ว" },
+              { value: "empty", label: "ยังไม่กรอก" },
+            ],
+          },
+        ]}
+      />
       <DataTable className="[&_table]:min-w-[860px]">
         <thead>
           <tr>
@@ -71,10 +127,10 @@ export default async function AdminPayoutsPage({ searchParams }: { searchParams:
               </Td>
             </Tr>
           ))}
-          {rows.length === 0 && <EmptyRow cols={7}>ยังไม่มีหมอดู</EmptyRow>}
+          {rows.length === 0 && <EmptyRow cols={7}>{Object.keys(filters).length ? "ไม่พบรายการตามตัวกรอง" : "ยังไม่มีหมอดู"}</EmptyRow>}
         </tbody>
       </DataTable>
-      <Pagination page={page} total={total} path={`${base}/payouts`} />
+      <Pagination page={page} total={total} path={`${base}/payouts`} params={filters} />
 
       <p className="mt-3 text-xs text-muted-foreground">
         ยอดบาทคำนวณจากยอดคงเหลือ × ฿{rate} ปัดลงเป็นบาทเต็ม ถ้าโอนบางส่วน ใส่จำนวน coin ที่ต้องการหักในช่องบันทึก แล้วโอนเงินตามยอดบาทที่ระบบแสดงข้างช่อง

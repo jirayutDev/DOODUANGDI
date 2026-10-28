@@ -45,6 +45,17 @@ export const pricingSchema = z.object({
     .refine((list) => new Set(list.map((x) => x.id)).size === list.length, "id โปรซ้ำกัน"),
   morDuCommissionPercent: z.number().min(0).max(90),
   coinBahtRate: z.number().min(0.01).max(10),
+  aiPrices: z
+    .array(
+      z.object({
+        model: z.string().trim().min(1).max(80),
+        inputPerM: z.number().min(0).max(100_000),
+        outputPerM: z.number().min(0).max(100_000),
+      })
+    )
+    .max(40)
+    .refine((list) => new Set(list.map((x) => x.model)).size === list.length, "ชื่อโมเดลซ้ำกัน"),
+  usdThb: z.number().min(1).max(1000),
 });
 
 const TTL_MS = 30_000;
@@ -68,6 +79,8 @@ export async function getPricing(): Promise<Pricing> {
         promotions: raw.promotions ?? DEFAULT_PRICING.promotions,
         morDuCommissionPercent: raw.morDuCommissionPercent ?? DEFAULT_PRICING.morDuCommissionPercent,
         coinBahtRate: raw.coinBahtRate ?? DEFAULT_PRICING.coinBahtRate,
+        aiPrices: raw.aiPrices ?? DEFAULT_PRICING.aiPrices,
+        usdThb: raw.usdThb ?? DEFAULT_PRICING.usdThb,
       });
       if (parsed.success) value = parsed.data as Pricing;
     }

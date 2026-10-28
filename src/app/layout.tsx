@@ -5,6 +5,7 @@ import { Mali } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { CoinErrorDialog } from "@/components/coin-error-dialog";
+import { ConfirmHost } from "@/components/confirm-dialog";
 
 // ฟอนต์เดียวทั้งเว็บ: Mali ลายมือกลมน่ารัก อ่านง่าย
 const mali = Mali({
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <Toaster />
         <CoinErrorDialog />
+        <ConfirmHost />
       </body>
     </html>
   );

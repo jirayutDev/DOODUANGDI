@@ -1,4 +1,5 @@
 import { mainProvider, modelChain, visionModelChain, visionProvider, type AiProvider } from "@/lib/ai-provider";
+import { logAiUsage, type AiUsageCtx } from "@/lib/ai-usage";
 import { calculateBirthProfile, type BirthProfile } from "./astrology";
 import type { TarotCard } from "./tarot-data";
 
@@ -78,6 +79,42 @@ interface ChatMsg {
 // ค่าความสุ่มเริ่มต้น: ต่ำกว่าค่าปกติของหลายเจ้า (มัก 1.0) เพื่อลดการเลือกคำแปลกๆ/แต่งคำไทยเอง ส่งเป็น undefined = ไม่ส่งพารามิเตอร์นี้
 const DEFAULT_TEMPERATURE = 0.7;
 
+// โทเค็นที่ผู้ให้บริการรายงานกลับมา (ใช้บันทึกต้นทุน) costUsd = ต้นทุนที่ผู้ให้บริการส่งให้เอง ถ้ามี
+interface CallUsage {
+  promptTokens: number;
+  completionTokens: number;
+  costUsd: number | null;
+}
+const NO_USAGE: CallUsage = { promptTokens: 0, completionTokens: 0, costUsd: null };
+
+// error ที่ได้คำตอบกลับมาแล้วแต่ใช้ไม่ได้ (ตัดกลางคัน/ว่าง/อักษรจีนปน) แนบโทเค็นที่ถูกเรียกเก็บไว้ด้วย เพื่อบันทึกต้นทุนของครั้งที่เสียเปล่า
+class AiCallError extends Error {
+  usage: CallUsage;
+  constructor(message: string, usage: CallUsage) {
+    super(message);
+    this.name = "AiCallError";
+    this.usage = usage;
+  }
+}
+
+function usageOf(data: { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; cost?: unknown } } | null): CallUsage {
+  const u = data?.usage;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
+  return {
+    promptTokens: num(u?.prompt_tokens),
+    completionTokens: num(u?.completion_tokens),
+    costUsd: typeof u?.cost === "number" && Number.isFinite(u.cost) && u.cost >= 0 ? u.cost : null,
+  };
+}
+
+function hostOf(p: AiProvider): string {
+  try {
+    return new URL(p.baseUrl).host;
+  } catch {
+    return p.baseUrl.slice(0, 60);
+  }
+}
+
 async function callOpenRouter(
   model: string,
   messages: ChatMsg[],
@@ -85,7 +122,7 @@ async function callOpenRouter(
   timeoutMs: number,
   provider: AiProvider = mainProvider(),
   temperature: number | undefined = DEFAULT_TEMPERATURE
-): Promise<string> {
+): Promise<{ text: string; usage: CallUsage }> {
   const send = (tokenParam: "max_tokens" | "max_completion_tokens", temp: number | undefined) =>
     fetch(`${provider.baseUrl}/chat/completions`, {
       method: "POST",
@@ -127,22 +164,23 @@ async function callOpenRouter(
     throw new Error(`OpenRouter API error (${model}): ${res.status}${detail}`);
   }
   const data = await res.json();
+  const usage = usageOf(data);
   const choice = data.choices?.[0];
   const text = choice?.message?.content;
   if (typeof text !== "string" || !text.trim()) {
-    throw new Error(`Empty response from OpenRouter (${model})`);
+    throw new AiCallError(`Empty response from OpenRouter (${model})`, usage);
   }
   // ตอบไม่ครบเพราะ token หมดกลางคัน — ถือว่าใช้ไม่ได้ ให้ไปลองโมเดลถัดไปหรือ fallback แทนที่จะโชว์ประโยคขาดๆ
   if (choice?.finish_reason === "length") {
-    throw new Error(`Truncated response from OpenRouter (${model})`);
+    throw new AiCallError(`Truncated response from OpenRouter (${model})`, usage);
   }
   // โมเดล free บางตัวหลุดปนอักษรจีน/ญี่ปุ่น/เกาหลีมาเป็นครั้งคราวแม้สั่งห้ามแล้วในพรอมต์
   // เช็กซ้ำเป็นเซฟการ์ดอีกชั้น ไม่ปล่อยให้หลุดถึงผู้ใช้ ให้ไปลองโมเดลถัดไปแทน
   const CJK_PATTERN = /[぀-ヿ㐀-䶿一-鿿가-힯]/;
   if (CJK_PATTERN.test(text)) {
-    throw new Error(`Response contains non-Thai CJK characters (${model})`);
+    throw new AiCallError(`Response contains non-Thai CJK characters (${model})`, usage);
   }
-  return stripFences(text);
+  return { text: stripFences(text), usage };
 }
 
 // ไล่ตาม OPENROUTER_MODEL ก่อน แล้วค่อยลอง OPENROUTER_FALLBACK_MODELS ทีละตัวถ้าตัวหลักพังหรือโดน rate limit
@@ -160,7 +198,8 @@ async function chatViaOpenRouter(
   maxTokens = 700,
   validate?: (text: string) => boolean,
   deadlineMs = 22_000,
-  temperature?: number
+  temperature?: number,
+  ctx?: AiUsageCtx // ระบุฟีเจอร์/ผู้ใช้เพื่อบันทึกโทเค็นและต้นทุนของทุกครั้งที่เรียก (ไม่ระบุ = ไม่บันทึก)
 ): Promise<string | null> {
   lastAiFailures = [];
   const provider = mainProvider();
@@ -178,11 +217,17 @@ async function chatViaOpenRouter(
       lastAiFailures.push(`หมดเวลาก่อนลอง ${model} (รวมทั้งสายเกิน ${Math.round(deadlineMs / 1000)} วินาที)`);
       break; // เหลือเวลาไม่พอรอโมเดลถัดไป
     }
+    const attemptStart = Date.now();
+    let received: CallUsage = NO_USAGE; // โทเค็นของครั้งนี้ (ได้คำตอบแล้วแต่ validate ไม่ผ่านก็ยังถูกเรียกเก็บ)
     try {
-      const text = await callOpenRouter(model, messages, maxTokens, remaining, provider, temperature ?? DEFAULT_TEMPERATURE);
+      const { text, usage } = await callOpenRouter(model, messages, maxTokens, remaining, provider, temperature ?? DEFAULT_TEMPERATURE);
+      received = usage;
       if (validate && !validate(text)) throw new Error(`Incomplete response (${model})`);
+      if (ctx) await logAiUsage({ ctx, model, provider: hostOf(provider), ok: true, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, providerCostUsd: usage.costUsd, ms: Date.now() - attemptStart });
       return text;
     } catch (e) {
+      if (e instanceof AiCallError) received = e.usage;
+      if (ctx) await logAiUsage({ ctx, model, provider: hostOf(provider), ok: false, promptTokens: received.promptTokens, completionTokens: received.completionTokens, providerCostUsd: received.costUsd, ms: Date.now() - attemptStart });
       // บันทึกสาเหตุ (ไม่มีคีย์/ข้อมูลผู้ใช้) เพื่อไล่ปัญหาใน log ของโฮสต์ แล้วลองโมเดลถัดไปในสาย
       const reason = e instanceof Error ? (e.name === "TimeoutError" ? `${model}: ตอบช้าเกินเวลา` : e.message) : String(e);
       console.error("[ai] model failed:", reason);
@@ -207,7 +252,7 @@ function profileLine(profile: MuAiInput["profile"]): string {
 }
 
 // คืน null เมื่อ AI ใช้ไม่ได้ทั้งหมด เพื่อให้ route คืนเหรียญและตอบ 503
-export async function generateMuReply(input: MuAiInput): Promise<string | null> {
+export async function generateMuReply(input: MuAiInput, userId?: string | null): Promise<string | null> {
   const system = [
     BASE_SYSTEM_PROMPT,
     "สไตล์การตอบ: สรุปให้เลย ฟันธงชัดเจน ไม่อ้อมค้อม ไม่ตอบกำกวม",
@@ -226,7 +271,7 @@ export async function generateMuReply(input: MuAiInput): Promise<string | null> 
       role: "user",
       content: `วันนี้เปิดไพ่ "${input.card.nameTh} (${input.card.nameEn})" ความหมาย: ${input.card.uprightMeaning}\n\nคำถาม: ${untrusted(input.message)}`,
     },
-  ]);
+  ], undefined, undefined, undefined, undefined, { feature: "chat", userId });
 }
 
 // ---------- สรุปผลไพ่ทั้งกระดาน (หลังเปิดไพ่แบบวางเป็นชุด) ----------
@@ -278,7 +323,7 @@ export function isCompleteSpreadSummary(text: string): boolean {
 }
 
 // คืน null เมื่อ AI ใช้ไม่ได้ทั้งหมด (หรือคำตอบขาดตอนทุกโมเดล)
-export async function generateSpreadSummary(input: SpreadSummaryInput): Promise<string | null> {
+export async function generateSpreadSummary(input: SpreadSummaryInput, userId?: string | null): Promise<string | null> {
   const hasQuestion = !!input.question;
   const system = [
     BASE_SYSTEM_PROMPT,
@@ -301,7 +346,10 @@ export async function generateSpreadSummary(input: SpreadSummaryInput): Promise<
       { role: "user", content: formatSpreadForPrompt(input) },
     ],
     2000,
-    isCompleteSpreadSummary
+    isCompleteSpreadSummary,
+    undefined,
+    undefined,
+    { feature: "reading-summary", userId }
   );
 }
 
@@ -314,7 +362,7 @@ export interface ZodiacHoroscopeInput {
   skyContext?: string; // ตำแหน่งดาวจริงของช่วงเวลานั้น (จาก src/lib/ephemeris.ts) ให้ AI ตีความ
 }
 
-export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Promise<string | null> {
+export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput, userId?: string | null): Promise<string | null> {
   const perLine = input.sentences.startsWith("3") ? "1-2" : "2";
   const system = [
     BASE_SYSTEM_PROMPT,
@@ -323,7 +371,8 @@ export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Prom
       ? [
           "ข้อมูลตำแหน่งดาวจริงของช่วงเวลานี้ (ระบบสิทธิยะ คำนวณด้วยเอนจินดาราศาสตร์):",
           input.skyContext,
-          `ให้ตีความจากข้อมูลดาวข้างต้นโดยโยงกับราศี${input.sign} (เช่น ดาวที่เข้าหรือผ่านราศีนี้ ดาวที่เดินถอยหลัง ข้างขึ้นข้างแรม) ห้ามแต่งตำแหน่งดาวที่ไม่อยู่ในข้อมูล และห้ามอ้างวันที่หรือมุมดาวที่ไม่มีให้`,
+          `ให้ตีความจากข้อมูลดาวข้างต้นโดยโยงกับราศี${input.sign}: ดูส่วน "ดาวเทียบกับราศี" ว่าดาวดวงไหนอยู่เรือนไหน (เรือนบอกว่ากระทบเรื่องอะไรในชีวิต) เลือกดาวที่เด่นที่สุด 2-3 ดวง (ดาวถอยหลัง ดาวเสาร์/พฤหัสบดี ดาวที่อยู่ในราศีนี้เอง หรือเหตุการณ์ช่วงนั้น เช่น จันทร์เข้าราศีใดวันไหน วันเพ็ญ) ห้ามแต่งตำแหน่งดาวหรือวันที่ที่ไม่อยู่ในข้อมูล`,
+          "เมื่อพูดถึงดาว ให้เอ่ยชื่อดาวตรงๆ ตามด้วยเหตุผลสั้นๆ ว่าทำไมกระทบเรื่องนี้ แล้วบอกผลในชีวิตจริง เช่น 'ศุกร์ถอยหลัง ดาวแห่งความรักกำลังเดินย้อน เรื่องใจเก่าๆ ของเมถุนเลยวนกลับมา' หรือ 'พุธถอยหลัง เป็นดาวการสื่อสาร ระวังเข้าใจผิดเรื่องข้อความและเอกสาร' อย่าพูดว่า 'ดาวหลายดวง' โดยไม่ระบุชื่อ",
         ]
       : []),
     "รูปแบบคำตอบ: ตอบเป็น 5 บรรทัดตามนี้เท่านั้น แต่ละบรรทัดขึ้นต้นด้วยป้ายกำกับตามด้วยเครื่องหมาย : แล้วต่อด้วยเนื้อหา",
@@ -332,10 +381,13 @@ export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Prom
     "การงาน: ...",
     "การเงิน: ...",
     "ข้อแนะนำ: ... (สิ่งที่ควรทำ 1 อย่างที่ทำได้จริงในช่วงนี้)",
-    `ภาพรวมเขียน ${perLine === "1-2" ? "2" : "2-3"} ประโยค ส่วนหัวข้ออื่นเขียนหัวข้อละ ${perLine} ประโยค จบประโยคให้สมบูรณ์`,
+    `ภาพรวมเขียน 3 ประโยค (สรุปว่าช่วงนี้ฟ้าเด่นอะไร ส่งผลกับราศี${input.sign}อย่างไร) ส่วนหัวข้ออื่นเขียนหัวข้อละ ${perLine === "1-2" ? "2" : "2-3"} ประโยค จบประโยคให้สมบูรณ์`,
     "ห้ามทักทาย ห้ามเกริ่นนำ ห้ามใส่หัวเรื่องหรือชื่อราศี/วันที่ซ้ำ ห้ามใช้เครื่องหมาย markdown (เช่น ** # -) และห้ามใช้อีโมจิ",
-    "เขียนด้วยภาษาง่ายๆ เหมือนเพื่อนเล่าให้ฟัง เน้นว่าชีวิตจริงจะเจออะไรและควรทำหรือไม่ควรทำอะไร พูดตรงๆ ชัดเจน (เช่น 'ควรเลื่อนการตัดสินใจเรื่องใหญ่ไปก่อน') ไม่เขียนกำกวมหรือเป็นกลอน",
-    "ถ้าจะอ้างอิงดาว ใช้ได้ไม่เกิน 1-2 จุด และต้องอธิบายผลต่อชีวิตจริงในประโยคเดียวกันเสมอ ห้ามโยนศัพท์ดาวทิ้งไว้เฉยๆ (เช่น ศุกร์ถอยหลัง ให้บอกว่าหมายถึงเรื่องรักที่เก่าๆ หรือการตัดสินใจเรื่องใจมักวกกลับมาให้ทบทวน)",
+    "เขียนด้วยภาษาง่ายๆ เหมือนเพื่อนเล่าให้ฟัง เน้นว่าชีวิตจริงจะเจออะไร เมื่อไหร่ และควรทำหรือไม่ควรทำอะไร พูดตรงๆ ชัดเจน (เช่น 'ควรเลื่อนการตัดสินใจเรื่องใหญ่ไปก่อน') ไม่เขียนกำกวมหรือเป็นกลอน",
+    "แต่ละหัวข้อ (ความรัก การงาน การเงิน) ต้องผูกกับดาวหรือเรือนที่เกี่ยวข้องจริงตามข้อมูล เช่น ความรักดูเรือนความรักและศุกร์ การงานดูเรือนงานและเสาร์/อังคาร การเงินดูเรือนเงินและศุกร์/พฤหัสบดี ถ้าหัวข้อไหนไม่มีดาวเด่นให้พูดสั้นๆ ว่าช่วงนี้ไม่มีอะไรผิดปกติแล้วให้คำแนะนำทั่วไปที่ทำได้จริง อย่าแต่งเรื่องเกินข้อมูล",
+    "ช่วงสัปดาห์และเดือน ให้ระบุวันที่หรือช่วงที่ดาวเปลี่ยนจริงตามข้อมูล (เช่น 'ราววันที่ 30 ต.ค. จันทร์เข้าเมถุน อารมณ์จะเบาลง') เพื่อให้คนอ่านรู้ว่าจังหวะไหนควรทำอะไร",
+    "ห้ามพูดถึงดาวโดยไม่อธิบายผล ทุกครั้งที่เอ่ยชื่อดาวต้องตามด้วยสิ่งที่คนอ่านจะเจอหรือควรทำ",
+    "ห้ามใช้ศัพท์โหราศาสตร์ที่คนทั่วไปไม่รู้ เช่น เรือน ลัคนา เรือนที่ 5 ร่วมมุม ตรีโกณ นิรายนะ ให้แปลงเป็นเรื่องในชีวิตแทน (เช่น 'เรื่องความรัก' 'เรื่องงาน' 'เรื่องเงิน') ใช้ชื่อดาวและคำว่าถอยหลังได้ แต่ต้องอธิบายว่าหมายถึงอะไร",
     "ห้ามระบุตัวเลขนำโชคหรือเลขเสี่ยงโชคใดๆ (ไม่ทำนายหวย) ห้ามกล่าวถึงว่าเป็น AI",
     "ใช้เฉพาะคำภาษาไทยที่มีอยู่จริงและคนทั่วไปใช้กัน ห้ามประดิษฐ์คำหรือสะกดคำเอง ถ้าไม่แน่ใจว่าคำไหนใช้ได้ ให้เลือกคำง่ายๆ ที่แน่ใจแทน",
   ].join("\n");
@@ -345,15 +397,16 @@ export async function generateZodiacHoroscope(input: ZodiacHoroscopeInput): Prom
       { role: "system", content: system },
       { role: "user", content: `ขอดูดวงราศี${input.sign} ${input.periodName}หน่อย` },
     ],
-    800,
+    1200,
     undefined,
     40_000, // งานสร้างล่วงหน้า (cron/แอดมิน) รันได้ถึง 60 วินาที เหลือเวลาให้รอบตรวจทานอีก 15 วินาที
-    0.5 // ข้อความทำนายต้องนิ่งและสะกดถูก ไม่ต้องสร้างสรรค์มาก
+    0.5, // ข้อความทำนายต้องนิ่งและสะกดถูก ไม่ต้องสร้างสรรค์มาก
+    { feature: "horoscope", userId }
   );
   // กันโมเดลหลุดใส่ markdown มา
   const draft = reply?.replace(/\*\*|^#+\s*/gm, "").trim();
   if (!draft) return null;
-  return (await polishThai(draft)) ?? draft;
+  return (await polishThai(draft, { feature: "horoscope", userId })) ?? draft;
 }
 
 const HORO_LABELS = ["ภาพรวม:", "ความรัก:", "การงาน:", "การเงิน:", "ข้อแนะนำ:"];
@@ -368,7 +421,7 @@ export function acceptPolished(original: string, polished: string): boolean {
 
 // ตรวจทานภาษาไทยอีกรอบ: โมเดลมักมีคำเพี้ยนบางจุด (สะกดผิด/คำที่ไม่มีจริง) รอบนี้ให้ทำหน้าที่บรรณาธิการแก้เฉพาะภาษา
 // ล้มเหลวหรือไม่ผ่านการตรวจโครงสร้าง = คืน null ให้ใช้ต้นฉบับ (ไม่ทำให้การสร้างดวงล้มเพราะรอบนี้)
-async function polishThai(text: string): Promise<string | null> {
+async function polishThai(text: string, ctx?: AiUsageCtx): Promise<string | null> {
   const system = [
     "คุณคือบรรณาธิการภาษาไทย ตรวจทานข้อความดวงที่ผู้ใช้ส่งมา",
     "แก้เฉพาะ: คำที่ไม่ใช่ภาษาไทยจริงหรือไม่มีความหมาย คำสะกดผิด และประโยคที่ฟังไม่เป็นธรรมชาติ ให้เป็นภาษาไทยที่ถูกต้องและอ่านลื่น",
@@ -383,7 +436,8 @@ async function polishThai(text: string): Promise<string | null> {
     900,
     undefined,
     15_000,
-    0.2
+    0.2,
+    ctx
   );
   const cleaned = out?.replace(/\*\*|^#+\s*/gm, "").trim();
   if (!cleaned) return null;
@@ -400,7 +454,7 @@ interface TopicReadingInput {
 }
 
 // คืน null เมื่อ AI ใช้ไม่ได้ทั้งหมด
-export async function generateTopicReading(input: TopicReadingInput): Promise<string | null> {
+export async function generateTopicReading(input: TopicReadingInput, userId?: string | null): Promise<string | null> {
   const system = [
     BASE_SYSTEM_PROMPT,
     `งานตอนนี้: ทำนาย "${input.topicName}" ช่วง${input.timeframe} ให้ผู้ถาม`,
@@ -418,7 +472,7 @@ export async function generateTopicReading(input: TopicReadingInput): Promise<st
   return chatViaOpenRouter([
     { role: "system", content: system },
     { role: "user", content: `ขอดู${input.topicName}${input.timeframe}หน่อย` },
-  ]);
+  ], undefined, undefined, undefined, undefined, { feature: "topic-reading", userId });
 }
 
 // ---------- สแกนหน้าดูโหงวเฮ้ง (ต้องใช้โมเดลที่อ่านรูปได้) ----------
@@ -479,7 +533,7 @@ function normalizeFaceReading(raw: unknown): FaceReadingOutcome | null {
   return { ok: true, result };
 }
 
-export async function generateFaceReading(imageDataUrl: string): Promise<FaceReadingOutcome> {
+export async function generateFaceReading(imageDataUrl: string, userId?: string | null): Promise<FaceReadingOutcome> {
   const visionProv = visionProvider();
   if (!visionProv.apiKey) return { ok: false, reason: "unavailable" };
 
@@ -512,11 +566,21 @@ export async function generateFaceReading(imageDataUrl: string): Promise<FaceRea
   for (const model of getVisionModelChain()) {
     const remaining = 24_000 - (Date.now() - startedAt); // เหลือเวลาให้ route คืน coin ถ้าล้มเหลว
     if (remaining < 2_500) break;
+    const attemptStart = Date.now();
+    const ctx: AiUsageCtx = { feature: "face-reading", userId };
+    let logged = false; // กันบันทึกซ้ำ: ครั้งนี้บันทึกแล้ว (ได้คำตอบแต่อ่านผลไม่ได้) ไม่ต้องบันทึกอีกใน catch
     try {
-      const text = await callOpenRouter(model, messages, 1600, remaining, visionProv, 0.3);
+      const { text, usage } = await callOpenRouter(model, messages, 1600, remaining, visionProv, 0.3);
       const outcome = normalizeFaceReading(extractJson(text));
+      logged = true;
+      await logAiUsage({ ctx, model, provider: hostOf(visionProv), ok: !!outcome, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, providerCostUsd: usage.costUsd, ms: Date.now() - attemptStart });
       if (outcome) return outcome;
     } catch (e) {
+      // ล้มระหว่างเรียก: ได้คำตอบแต่ใช้ไม่ได้ (AiCallError) ก็มีโทเค็นให้บันทึก ส่วน error อื่นไม่มีโทเค็น
+      if (!logged) {
+        const u = e instanceof AiCallError ? e.usage : NO_USAGE;
+        await logAiUsage({ ctx, model, provider: hostOf(visionProv), ok: false, promptTokens: u.promptTokens, completionTokens: u.completionTokens, providerCostUsd: u.costUsd, ms: Date.now() - attemptStart });
+      }
       // บันทึกสาเหตุ (ไม่มีรูปหรือคีย์) แล้วลองโมเดลถัดไปในสาย — ค้นคำว่า [ai-vision] ใน log ของโฮสต์
       console.error("[ai-vision] model failed:", e instanceof Error ? e.message : String(e));
     }
@@ -564,7 +628,7 @@ function normalizeLoveMatch(raw: unknown): LoveMatchResult | null {
 }
 
 // คืน null เมื่อ AI ใช้ไม่ได้ทั้งหมด เพื่อให้ route คืนเหรียญและตอบ 503
-export async function generateLoveMatch(a: LovePerson, b: LovePerson): Promise<LoveMatchResult | null> {
+export async function generateLoveMatch(a: LovePerson, b: LovePerson, userId?: string | null): Promise<LoveMatchResult | null> {
   const pa = calculateBirthProfile(a.birthDate);
   const pb = calculateBirthProfile(b.birthDate);
   const describe = (label: string, p: LovePerson, prof: BirthProfile) =>
@@ -583,7 +647,11 @@ export async function generateLoveMatch(a: LovePerson, b: LovePerson): Promise<L
       { role: "system", content: system },
       { role: "user", content: [describe("คนที่ 1", a, pa), describe("คนที่ 2", b, pb)].join("\n") },
     ],
-    1200
+    1200,
+    undefined,
+    undefined,
+    undefined,
+    { feature: "love-match", userId }
   );
   return text ? normalizeLoveMatch(extractJson(text)) : null;
 }
