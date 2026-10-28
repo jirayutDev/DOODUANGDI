@@ -87,12 +87,12 @@ export default function HomePage() {
               ถามน้องมู
             </button>
           </form>
-          <div className="-mx-[18px] mt-2.5 flex gap-2 overflow-x-auto px-[18px] [scrollbar-width:none] md:mx-0 md:mt-3 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
+          <div className="mt-3 flex flex-wrap gap-2">
             {ASKS.map((a) => (
               <Link
                 key={a}
                 href="/chat"
-                className="shrink-0 rounded-full border border-line-soft px-3 py-1.5 text-[16px] whitespace-nowrap text-soft-text hover:text-foreground md:px-3.5 md:text-sm"
+                className="inline-flex min-h-10 items-center rounded-full border border-line-soft px-3.5 text-[15px] whitespace-nowrap text-soft-text hover:text-foreground md:text-sm"
               >
                 {a}
               </Link>

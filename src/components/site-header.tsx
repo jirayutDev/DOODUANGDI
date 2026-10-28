@@ -23,7 +23,8 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-// ส่วนหัว V2: มือถือมีแค่โลโก้ + ปุ่มดวงของฉัน, จอคอมมีเมนูบนเต็ม
+// ส่วนหัว V2: ต่ำกว่า lg (มือถือ/แท็บเล็ต) มีแค่โลโก้ + coin + ปุ่มดวงของฉัน และใช้เมนูล่าง,
+// lg ขึ้นไปมีเมนูบนเต็ม, xl ขึ้นไปมีปุ่มโปรไฟล์/ออกจากระบบแยก (จอแคบกว่านั้นที่ว่างไม่พอ จะไม่ให้ตัวหนังสือตัดบรรทัด)
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
@@ -72,16 +73,16 @@ export function SiteHeader() {
     router.refresh();
   }
 
-  const pill = "inline-flex min-h-[38px] items-center rounded-full px-3 text-[16px] transition-colors";
+  const pill = "inline-flex min-h-[38px] items-center whitespace-nowrap rounded-full px-2.5 text-[16px] transition-colors";
 
   return (
     <header className="bg-background">
-      <div className="mx-auto flex max-w-[1120px] items-center gap-8 px-[18px] py-3.5 md:px-10 md:py-4">
-        <Link href="/" className="font-display text-[28px] leading-normal font-bold text-primary md:text-[32px]">
+      <div className="mx-auto flex max-w-[1120px] items-center gap-3 px-[18px] py-3.5 md:gap-4 md:px-10 md:py-4 lg:gap-6">
+        <Link href="/" className="shrink-0 whitespace-nowrap font-display text-[26px] leading-normal font-bold text-primary min-[360px]:text-[28px] md:text-[32px]">
           ดูดวงดิ
         </Link>
 
-        <nav aria-label="เมนูหลัก" className="hidden gap-1.5 md:flex">
+        <nav aria-label="เมนูหลัก" className="hidden gap-1 lg:flex">
           {NAV_ITEMS.map((item) => {
             const active = isActive(pathname, item.href);
             return (
@@ -97,12 +98,12 @@ export function SiteHeader() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 text-[16px]">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap md:gap-2 text-[16px]">
           {signedIn && (
             <Link
               href="/coins"
               aria-label="กระเป๋า coin"
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line-soft px-3 text-sm font-semibold text-primary"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line-soft px-2.5 text-sm font-semibold text-primary md:px-3"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" />
@@ -115,9 +116,9 @@ export function SiteHeader() {
             <>
               <Link
                 href="/me"
-                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-secondary px-3.5 text-sm md:hidden"
+                className="inline-flex min-h-10 items-center gap-2 rounded-full bg-secondary px-3 text-sm md:px-3.5 xl:hidden"
               >
-                <span className="inline-flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-ink">
+                <span className="hidden size-6 items-center justify-center min-[360px]:inline-flex rounded-full bg-primary text-xs font-bold text-ink">
                   {avatarInitial(user)}
                 </span>
                 ดวงของฉัน
@@ -125,14 +126,14 @@ export function SiteHeader() {
               <Link
                 href="/profile"
                 aria-current={pathname.startsWith("/profile") ? "page" : undefined}
-                className="hidden min-h-10 items-center rounded-full bg-secondary px-[18px] text-foreground md:inline-flex"
+                className="hidden min-h-10 items-center rounded-full bg-secondary px-4 text-foreground xl:inline-flex"
               >
                 โปรไฟล์
               </Link>
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="hidden min-h-10 items-center rounded-full bg-secondary px-[18px] text-foreground md:inline-flex"
+                className="hidden min-h-10 items-center rounded-full bg-secondary px-4 text-foreground xl:inline-flex"
               >
                 ออกจากระบบ
               </button>
@@ -162,7 +163,7 @@ export function BottomBar() {
   return (
     <nav
       aria-label="เมนูล่าง"
-      className="fixed inset-x-0 bottom-0 z-40 grid h-[72px] grid-cols-5 border-t border-border bg-background px-1.5 pt-1.5 pb-3 text-center text-xs md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 grid h-[72px] grid-cols-5 border-t border-border bg-background px-1.5 pt-1.5 pb-3 text-center text-xs lg:hidden"
     >
       {TABS.map((t) => {
         const active = isActive(pathname, t.href);
@@ -171,7 +172,7 @@ export function BottomBar() {
             key={t.href}
             href={t.href}
             aria-current={active ? "page" : undefined}
-            className={cn("flex flex-col items-center justify-center gap-0.5", active ? "font-semibold text-primary" : "text-muted-foreground")}
+            className={cn("flex flex-col items-center justify-center gap-0.5 whitespace-nowrap", active ? "font-semibold text-primary" : "text-muted-foreground")}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d={t.icon} />

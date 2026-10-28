@@ -419,7 +419,7 @@ function SpreadResult({ spread, drawn }: { spread: Spread; drawn: DrawnCard[] })
 
   if (spread.layout === "row") {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+      <div className="mx-auto grid max-w-md grid-cols-3 gap-2 sm:flex sm:max-w-none sm:items-start sm:justify-center sm:gap-4">
         {drawn.map((d, i) => (
           <CardSlot
             key={i}
@@ -428,6 +428,7 @@ function SpreadResult({ spread, drawn }: { spread: Spread; drawn: DrawnCard[] })
             drawn={d}
             faceUp={revealed.has(i)}
             dealIndex={i}
+            fluid
           />
         ))}
       </div>
@@ -519,6 +520,7 @@ function CardSlot({
   dealIndex,
   compact = false,
   bare = false,
+  fluid = false,
 }: {
   position: string;
   index: number;
@@ -527,11 +529,13 @@ function CardSlot({
   dealIndex: number;
   compact?: boolean;
   bare?: boolean;
+  // มือถือ: ให้ไพ่ยืดตามความกว้างคอลัมน์ (วาง 3 ใบแถวเดียว) จอ sm ขึ้นไปกลับเป็นขนาดปกติ
+  fluid?: boolean;
 }) {
   const { card, reversed } = drawn;
 
   const flipImage = (
-    <div className={cn("relative mx-auto [perspective:1200px]", compact ? "w-20" : "w-32")}>
+    <div className={cn("relative mx-auto [perspective:1200px]", compact ? "w-20" : fluid ? "w-full sm:w-32" : "w-32")}>
       <div
         className="relative aspect-[7/12] w-full transition-transform duration-700 [transform-style:preserve-3d]"
         style={{ transform: faceUp ? "rotateY(180deg)" : undefined }}
@@ -547,7 +551,7 @@ function CardSlot({
             src={card.imageUrl}
             alt={`${card.nameTh} (${card.nameEn})`}
             fill
-            sizes={compact ? "80px" : "128px"}
+            sizes={compact ? "80px" : fluid ? "(min-width: 640px) 128px, 30vw" : "128px"}
             className="object-contain"
           />
         </div>
@@ -560,19 +564,21 @@ function CardSlot({
   // ความสูงของทุกใบต้องเท่ากันเป๊ะ ไม่งั้น grid ของเซลติกครอสจะเบี้ยว (ชื่อไพ่/ป้ายกลับหัวยาวไม่เท่ากัน)
   // เลยจองพื้นที่ไว้คงที่ และย้ายเนื้อหาความหมายเต็มๆ ไปโชว์แยกเป็นลิสต์ด้านล่างแทน
   return (
-    <div className="animate-deal-in" style={{ animationDelay: `${dealIndex * 150}ms` }}>
-      <Card className={cn("bg-card", compact ? "w-24" : "w-40 sm:w-56")}>
-        <CardContent className="flex flex-col items-center gap-2 p-3 text-center">
+    <div className={cn("animate-deal-in", fluid && "min-w-0")} style={{ animationDelay: `${dealIndex * 150}ms` }}>
+      <Card className={cn("bg-card", compact ? "w-24" : fluid ? "w-full sm:w-56" : "w-40 sm:w-56")}>
+        <CardContent className={cn("flex flex-col items-center gap-2 p-3 text-center", fluid && "gap-1.5 p-2 sm:gap-2 sm:p-3")}>
           <Badge variant="secondary" className="text-xs">
             ใบที่ {index}
           </Badge>
           {/* Mali ใช้ line-height 1.7 (text-xs ≈ 22px/บรรทัดกับ Mali) ความสูงคงที่ต้องพอดีกับ 2 บรรทัด ไม่งั้นข้อความทับกัน */}
           {!compact && (
-            <p className="line-clamp-2 h-12 text-xs text-muted-foreground">{position}</p>
+            <p className={cn("line-clamp-2 h-12 text-xs text-muted-foreground", fluid && "h-11 text-[11px] leading-snug sm:h-12 sm:text-xs sm:leading-[inherit]")}>
+              {position}
+            </p>
           )}
           {flipImage}
-          <div className="flex h-14 flex-col items-center justify-center">
-            <p className="line-clamp-1 font-display text-sm text-foreground">{card.nameTh}</p>
+          <div className={cn("flex h-14 flex-col items-center justify-center", fluid && "h-16 sm:h-14")}>
+            <p className={cn("line-clamp-1 font-display text-sm text-foreground", fluid && "line-clamp-2 text-xs leading-snug sm:line-clamp-1 sm:text-sm sm:leading-[inherit]")}>{card.nameTh}</p>
             <p className={cn("text-xs text-destructive", !reversed && "invisible")}>กลับหัว</p>
           </div>
         </CardContent>
