@@ -76,25 +76,32 @@ interface ChatMsg {
 }
 
 async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: number, timeoutMs: number, provider: AiProvider = mainProvider()): Promise<string> {
-  const res = await fetch(`${provider.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${provider.apiKey}`,
-      "http-referer": process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-      // header ต้องเป็น ASCII เท่านั้น (fetch จะ throw ถ้ามีอักษรไทย) ใช้ "DOODUANGD" แทนชื่อแบรนด์ไทย
-      "x-title": "DOODUANGD",
-    },
-    body: JSON.stringify({
-      model,
-      // free models หลายตัวเป็น reasoning model ที่ใช้ token คิดก่อนตอบ
-      // ให้ budget น้อยไปจะโดนตัดตอนคิด (finish_reason: length, content: null/ประโยคขาดกลางคัน)
-      max_tokens: maxTokens,
-      messages,
-    }),
-    // ตัดโมเดลที่ช้า/ค้าง ไม่ให้ฟังก์ชันบนโฮสต์รอจนถูกฆ่า (ถ้าถูกฆ่าหลังหัก coin แล้ว จะไม่มีโอกาสคืน coin)
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  const send = (tokenParam: "max_tokens" | "max_completion_tokens") =>
+    fetch(`${provider.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${provider.apiKey}`,
+        "http-referer": process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+        // header ต้องเป็น ASCII เท่านั้น (fetch จะ throw ถ้ามีอักษรไทย) ใช้ "DOODUANGD" แทนชื่อแบรนด์ไทย
+        "x-title": "DOODUANGD",
+      },
+      body: JSON.stringify({
+        model,
+        // โมเดลแบบ reasoning ใช้ token คิดก่อนตอบ ให้ budget น้อยไปจะโดนตัดตอนคิด (finish_reason: length)
+        [tokenParam]: maxTokens,
+        messages,
+      }),
+      // ตัดโมเดลที่ช้า/ค้าง ไม่ให้ฟังก์ชันบนโฮสต์รอจนถูกฆ่า (ถ้าถูกฆ่าหลังหัก coin แล้ว จะไม่มีโอกาสคืน coin)
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+  let res = await send("max_tokens");
+  // โมเดล GPT รุ่นใหม่บางตัวไม่รับ max_tokens ต้องใช้ max_completion_tokens: ถ้าเจอ error แบบนี้ลองใหม่ด้วยชื่อพารามิเตอร์ที่ถูก
+  if (res.status === 400) {
+    const peek = (await res.clone().json().catch(() => null)) as { error?: { message?: string } } | null;
+    if (/max_tokens|max_completion_tokens/i.test(peek?.error?.message ?? "")) res = await send("max_completion_tokens");
+  }
 
   if (!res.ok) {
     // ข้อความ error จาก OpenRouter (เช่น โมเดลไม่มี/ถูกจำกัดการใช้) ไม่มีคีย์หรือข้อมูลผู้ใช้ ตัดให้สั้นก่อนบันทึก
