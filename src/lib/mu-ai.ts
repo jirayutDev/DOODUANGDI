@@ -1,4 +1,4 @@
-import { mainProvider, modelChain, visionProvider, type AiProvider } from "@/lib/ai-provider";
+import { mainProvider, modelChain, visionModelChain, visionProvider, type AiProvider } from "@/lib/ai-provider";
 import { calculateBirthProfile, type BirthProfile } from "./astrology";
 import type { TarotCard } from "./tarot-data";
 
@@ -368,12 +368,7 @@ export async function generateTopicReading(input: TopicReadingInput): Promise<st
 // ---------- สแกนหน้าดูโหงวเฮ้ง (ต้องใช้โมเดลที่อ่านรูปได้) ----------
 // แยกสายโมเดลจากแชทปกติ เพราะ free models ส่วนใหญ่อ่านรูปไม่ได้
 function getVisionModelChain(): string[] {
-  const primary = process.env.OPENROUTER_VISION_MODEL || "anthropic/claude-haiku-4.5";
-  const fallbacks = (process.env.OPENROUTER_VISION_FALLBACK_MODELS ?? "google/gemini-2.5-flash")
-    .split(",")
-    .map((m) => m.trim())
-    .filter(Boolean);
-  return [primary, ...fallbacks];
+  return visionModelChain();
 }
 
 // แท็บที่หน้าผลลัพธ์ (ตามดีไซน์: ใบหน้า / ตา / ปาก / คิ้ว)
@@ -465,8 +460,9 @@ export async function generateFaceReading(imageDataUrl: string): Promise<FaceRea
       const text = await callOpenRouter(model, messages, 1600, remaining, visionProv);
       const outcome = normalizeFaceReading(extractJson(text));
       if (outcome) return outcome;
-    } catch {
-      // ลองโมเดลถัดไปในสาย
+    } catch (e) {
+      // บันทึกสาเหตุ (ไม่มีรูปหรือคีย์) แล้วลองโมเดลถัดไปในสาย — ค้นคำว่า [ai-vision] ใน log ของโฮสต์
+      console.error("[ai-vision] model failed:", e instanceof Error ? e.message : String(e));
     }
   }
   return { ok: false, reason: "unavailable" };
