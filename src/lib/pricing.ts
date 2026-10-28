@@ -79,7 +79,8 @@ export async function getPricing(): Promise<Pricing> {
         promotions: raw.promotions ?? DEFAULT_PRICING.promotions,
         morDuCommissionPercent: raw.morDuCommissionPercent ?? DEFAULT_PRICING.morDuCommissionPercent,
         coinBahtRate: raw.coinBahtRate ?? DEFAULT_PRICING.coinBahtRate,
-        aiPrices: raw.aiPrices ?? DEFAULT_PRICING.aiPrices,
+        // ยังไม่เคยตั้งราคาโมเดล (หรือเคยบันทึกเป็นรายการว่าง) ใช้ราคา MaxPlus เริ่มต้น
+        aiPrices: raw.aiPrices?.length ? raw.aiPrices : DEFAULT_PRICING.aiPrices,
         usdThb: raw.usdThb ?? DEFAULT_PRICING.usdThb,
       });
       if (parsed.success) value = parsed.data as Pricing;

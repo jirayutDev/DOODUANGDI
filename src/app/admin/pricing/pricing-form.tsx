@@ -7,7 +7,7 @@ import { AlertTriangle, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { confirmModal } from "@/components/confirm-dialog";
 import { cn } from "@/lib/utils";
-import { bonusFor, FEATURE_COSTS, isPromoLive, type FeatureKey, type Pricing, type Promotion } from "@/lib/coin-config";
+import { bonusFor, FEATURE_COSTS, isPromoLive, MAXPLUS_CREDIT_THB, MAXPLUS_PRESET, type FeatureKey, type Pricing, type Promotion } from "@/lib/coin-config";
 import { coinsToBaht, splitPrice, thaiLocalToDate } from "@/lib/booking";
 import { costMicroUsd, microUsdToBaht } from "@/lib/ai-cost";
 
@@ -213,6 +213,24 @@ export function PricingForm({ initial }: { initial: Pricing }) {
 
   const updatePackage = (i: number, patch: Partial<PackageRow>) => set({ packages: packages.map((p, idx) => (idx === i ? { ...p, ...patch } : p)) });
   const updatePromo = (i: number, patch: Partial<PromoRow>) => set({ promos: promos.map((p, idx) => (idx === i ? { ...p, ...patch } : p)) });
+  // เติมราคาโมเดลของ MaxPlus: เครดิต -> บาท -> ดอลลาร์ตามอัตราแลกที่ตั้งอยู่ในฟอร์ม แถวที่ชื่อซ้ำถูกแทนที่ แถวอื่นคงไว้
+  const fillMaxplusPrices = () => {
+    const rate = Number(usdThb);
+    if (!Number.isFinite(rate) || rate < 1) {
+      toast.error("ตั้งอัตราแลกดอลลาร์ให้ถูกต้องก่อน");
+      return;
+    }
+    const usd = (credit: number) => String(+((credit * MAXPLUS_CREDIT_THB) / rate).toFixed(5));
+    const preset = MAXPLUS_PRESET.map((p) => ({ model: p.model, inputPerM: usd(p.inCredit), outputPerM: usd(p.outCredit) }));
+    const names = new Set(preset.map((p) => p.model));
+    const merged = [...aiRows.filter((r) => !names.has(r.model.trim())), ...preset];
+    if (merged.length > 40) {
+      toast.error("ราคาโมเดลเกิน 40 แถว ลบแถวที่ไม่ใช้ก่อน");
+      return;
+    }
+    set({ aiRows: merged });
+    toast.success(`ใส่ราคา MaxPlus ${preset.length} โมเดลแล้ว กดบันทึกราคาเพื่อใช้งาน`);
+  };
   const updateAiRow = (i: number, patch: Partial<AiPriceRow>) => set({ aiRows: aiRows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) });
   const togglePromoPackage = (i: number, id: string) =>
     updatePromo(i, { packageIds: promos[i].packageIds.includes(id) ? promos[i].packageIds.filter((x) => x !== id) : [...promos[i].packageIds, id] });
@@ -658,6 +676,13 @@ export function PricingForm({ initial }: { initial: Pricing }) {
         <AddButton disabled={aiRows.length >= 40} onClick={() => set({ aiRows: [...aiRows, { model: "", inputPerM: "", outputPerM: "" }] })}>
           เพิ่มโมเดล
         </AddButton>
+        <button
+          type="button"
+          onClick={fillMaxplusPrices}
+          className="mt-3 ml-0 inline-flex min-h-10 items-center rounded-lg border border-border px-4 text-sm text-soft-text hover:border-primary sm:ml-3"
+        >
+          ใส่ราคา MaxPlus (Claude Native + Gemini Premium)
+        </button>
         <p className="mt-3 rounded-lg bg-secondary px-3 py-2 text-sm text-soft-text">
           {aiExample ? `ตัวอย่าง: ${aiExample}` : "ใส่ชื่อโมเดล ราคาขาเข้า/ขาออก และอัตราแลกในแถวแรก เพื่อดูตัวอย่างต้นทุนต่อครั้ง"}
         </p>

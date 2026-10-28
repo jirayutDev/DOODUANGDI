@@ -79,6 +79,28 @@ export interface AiPrice {
   outputPerM: number;
 }
 
+// ราคาโมเดลของ MaxPlus (พูล Claude Native ×5.8 และ Gemini Premium ×6.7) หน่วยเป็น "เครดิต MaxPlus ต่อ 1 ล้านโทเค็น" ตามตารางราคาของเขา
+// เครดิต 1 หน่วยมีค่า ~฿0.333 (ยืนยันจากราคาแบบต่อคำขอของเขา: ฿0.0269 = เครดิต 0.0807 และจาก "ถูกกว่า Official ~17 เท่า" ของ Claude Native)
+// ปุ่ม "ใส่ราคา MaxPlus" ในหน้าตั้งราคาแปลงเป็นดอลลาร์ตามอัตราแลกที่ตั้งไว้ให้ ราคาแต่ละพูลต่างกัน ใช้เฉพาะพูลที่ระบุ
+export const MAXPLUS_CREDIT_THB = 1 / 3;
+export const MAXPLUS_PRESET: { model: string; inCredit: number; outCredit: number }[] = [
+  // Claude Native
+  { model: "claude-haiku-4-5-20251001", inCredit: 5.8, outCredit: 29 },
+  { model: "claude-haiku-4-5", inCredit: 5.8, outCredit: 29 },
+  { model: "claude-sonnet-4-6", inCredit: 17.4, outCredit: 87 },
+  { model: "claude-sonnet-5", inCredit: 11.6, outCredit: 58 },
+  { model: "claude-sonnet-5-5", inCredit: 11.6, outCredit: 58 },
+  // Gemini Premium
+  { model: "gemini-2.5-flash-lite", inCredit: 0.67, outCredit: 2.68 },
+  { model: "gemini-2.5-flash", inCredit: 2.01, outCredit: 16.75 },
+  { model: "gemini-3-flash", inCredit: 3.35, outCredit: 20.1 },
+  { model: "gemini-3.1-flash-lite", inCredit: 1.675, outCredit: 10.05 },
+  { model: "gemini-3.6-flash", inCredit: 10.05, outCredit: 50.25 },
+  { model: "gemini-3.7-flash", inCredit: 5.025, outCredit: 25.125 },
+  { model: "gemini-3.8-flash", inCredit: 5.025, outCredit: 25.125 },
+  { model: "gemini-3.1-pro-preview", inCredit: 13.4, outCredit: 80.4 },
+];
+
 // ราคาที่ใช้งานจริง (ค่าเริ่มต้น = ค่าด้านบน ถูกแทนที่ด้วยที่แอดมินตั้ง)
 export interface Pricing {
   costs: Record<FeatureKey, number>;
@@ -98,7 +120,12 @@ export const DEFAULT_PRICING: Pricing = {
   promotions: [],
   morDuCommissionPercent: 20,
   coinBahtRate: 0.7,
-  aiPrices: [],
+  // ค่าเริ่มต้น = ราคา MaxPlus ที่ใช้อยู่ แปลงจากเครดิตเป็นดอลลาร์ที่ ฿36/$ (แอดมินแก้เองได้ในหน้าตั้งราคา)
+  aiPrices: MAXPLUS_PRESET.map((p) => ({
+    model: p.model,
+    inputPerM: +((p.inCredit * MAXPLUS_CREDIT_THB) / 36).toFixed(5),
+    outputPerM: +((p.outCredit * MAXPLUS_CREDIT_THB) / 36).toFixed(5),
+  })),
   usdThb: 36,
 };
 
