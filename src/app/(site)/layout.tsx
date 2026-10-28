@@ -7,7 +7,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
     <>
       <SiteHeader />
       <main className="flex-1">{children}</main>
-      <footer className="bg-background pb-[72px] text-sm text-muted-foreground md:pb-0">
+      <footer className="bg-background pb-[72px] text-sm text-muted-foreground lg:pb-0">
         <div className="mx-auto flex max-w-[1120px] flex-wrap justify-between gap-5 border-t border-border px-[18px] pt-[22px] pb-10 md:px-10">
           <span>© 2569 ดูดวงดิ · ดูเพื่อเป็นกำลังใจ ใช้วิจารณญาณประกอบนะ</span>
           <span className="flex gap-1">

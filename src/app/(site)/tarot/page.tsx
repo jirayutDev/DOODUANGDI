@@ -10,10 +10,10 @@ export const metadata: Metadata = {
 
 const SECTIONS: TarotSection[] = [
   { tab: "ชุดใหญ่ 22 ใบ", title: "ชุดใหญ่ 22 ใบ (Major Arcana)", cards: TAROT_CARDS.slice(0, 22) },
-  { tab: "เหรียญ · เงินทอง", title: "สำรับเหรียญ · เงินทองและการงาน", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-coins")) },
-  { tab: "ตะเกียง · พลัง", title: "สำรับตะเกียง · พลังและแรงบันดาลใจ", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-diya")) },
-  { tab: "หม้อน้ำ · ความรัก", title: "สำรับหม้อน้ำ · อารมณ์และความรัก", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-kalasha")) },
-  { tab: "ดาบ · ความคิด", title: "สำรับดาบ · ความคิดและการตัดสินใจ", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-khadga")) },
+  { tab: "ไม้เท้า · พลัง", title: "สำรับไม้เท้า (Wands) · พลังและแรงบันดาลใจ", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-wands")) },
+  { tab: "ถ้วย · ความรัก", title: "สำรับถ้วย (Cups) · อารมณ์และความรัก", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-cups")) },
+  { tab: "ดาบ · ความคิด", title: "สำรับดาบ (Swords) · ความคิดและการตัดสินใจ", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-swords")) },
+  { tab: "เหรียญ · เงินทอง", title: "สำรับเหรียญ (Pentacles) · เงินทองและการงาน", cards: TAROT_CARDS.filter((c) => c.slug.endsWith("-pentacles")) },
 ];
 
 export default function TarotIndexPage() {
