@@ -1,4 +1,5 @@
 import { and, count, desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin";
 import { adminBase } from "@/lib/admin-path";
 import { getDb } from "@/db";
@@ -59,6 +60,9 @@ export default async function AdminHoroscopesPage({ searchParams }: { searchPara
                 {have}/{total} ราศี
               </p>
               <HoroscopeActions kind={kind} />
+              <Link href={`${base}/horoscopes/${kind}/${key}`} className="mt-3 inline-block text-sm text-primary hover:underline">
+                ดูข้อความที่สร้างแล้ว
+              </Link>
             </Panel>
           );
         })}
@@ -78,7 +82,11 @@ export default async function AdminHoroscopesPage({ searchParams }: { searchPara
           {history.map((r) => (
             <Tr key={`${r.kind}-${r.periodKey}`}>
               <Td>{KINDS.find((k) => k.kind === r.kind)?.label ?? r.kind}</Td>
-              <Td className="font-mono text-xs">{r.periodKey}</Td>
+              <Td className="font-mono text-xs">
+                <Link href={`${base}/horoscopes/${r.kind}/${r.periodKey}`} className="text-primary hover:underline">
+                  {r.periodKey}
+                </Link>
+              </Td>
               <Td className="text-right">
                 {r.n}/{total}
               </Td>

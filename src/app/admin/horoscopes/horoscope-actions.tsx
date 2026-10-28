@@ -41,7 +41,10 @@ export function HoroscopeActions({ kind }: { kind: Kind }) {
             failed.push(sign);
           } else if (data.status === "created") created++;
           else if (data.status === "skipped") skipped++;
-          else failed.push(sign);
+          else {
+            if (typeof data.hint === "string") lastError = data.hint;
+            failed.push(sign);
+          }
         } catch {
           failed.push(sign);
         }

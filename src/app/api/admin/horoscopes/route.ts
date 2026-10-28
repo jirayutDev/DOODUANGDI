@@ -26,7 +26,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (sign) return NextResponse.json(await generateSign(kind, sign, { regenerate }));
+    if (sign) {
+      const r = await generateSign(kind, sign, { regenerate });
+      // คำใบ้เมื่อสร้างไม่สำเร็จ (รายละเอียดจริงดูใน log ของเซิร์ฟเวอร์ ค้นคำว่า [ai])
+      const hint =
+        r.status === "failed"
+          ? process.env.OPENROUTER_API_KEY
+            ? "โมเดล AI ไม่ตอบหรือใช้เวลานานเกินกำหนด ลองตั้ง OPENROUTER_MODEL เป็นโมเดลที่เร็ว"
+            : "ยังไม่ได้ตั้ง OPENROUTER_API_KEY บนเซิร์ฟเวอร์"
+          : undefined;
+      return NextResponse.json({ ...r, hint });
+    }
     const result = await generateAllSigns(kind, { regenerate });
     return NextResponse.json(result, { status: result.failed.length ? 207 : 200 });
   } catch (e) {

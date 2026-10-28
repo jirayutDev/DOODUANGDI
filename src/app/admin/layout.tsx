@@ -8,16 +8,18 @@ import { AdminSidebar } from "@/components/admin/sidebar";
 
 export const metadata: Metadata = { title: "หลังบ้าน · ดูดวงดิ", robots: { index: false, follow: false } };
 
+// ป้ายตัวเลขเป็นของเสริม: ถ้าฐานข้อมูลช้า/ต่อไม่ได้ รอไม่เกิน 3 วินาทีแล้วข้ามไป ไม่ให้ทั้งหน้าค้างตาม
 async function pendingBadges() {
+  const empty = { payments: 0, morDu: 0 };
   try {
     const db = getDb();
-    const [[pay], [mor]] = await Promise.all([
+    const query = Promise.all([
       db.select({ n: count() }).from(payments).where(eq(payments.status, "awaiting_confirmation")),
       db.select({ n: count() }).from(morDus).where(eq(morDus.status, "pending")),
-    ]);
-    return { payments: pay.n, morDu: mor.n };
+    ]).then(([[pay], [mor]]) => ({ payments: pay.n, morDu: mor.n }));
+    return await Promise.race([query, new Promise<typeof empty>((resolve) => setTimeout(() => resolve(empty), 3000))]);
   } catch {
-    return { payments: 0, morDu: 0 };
+    return empty;
   }
 }
 

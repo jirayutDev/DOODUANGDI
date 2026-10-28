@@ -22,7 +22,7 @@ function getClient() {
       prepare: false,
       max: process.env.NODE_ENV === "production" ? 1 : 3,
       idle_timeout: 20,
-      connect_timeout: 15,
+      connect_timeout: 8,
     });
   }
   return globalForDb.pgClient;

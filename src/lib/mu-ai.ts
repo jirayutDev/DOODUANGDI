@@ -130,18 +130,25 @@ async function chatViaOpenRouter(
   validate?: (text: string) => boolean,
   deadlineMs = 22_000
 ): Promise<string | null> {
-  if (!process.env.OPENROUTER_API_KEY) return null;
+  if (!process.env.OPENROUTER_API_KEY) {
+    console.error("[ai] OPENROUTER_API_KEY is not set");
+    return null;
+  }
 
   const startedAt = Date.now();
   for (const model of getModelChain()) {
     const remaining = deadlineMs - (Date.now() - startedAt);
-    if (remaining < 2_500) break; // เหลือเวลาไม่พอรอโมเดลถัดไป
+    if (remaining < 2_500) {
+      console.error(`[ai] out of time before trying ${model} (deadline ${deadlineMs}ms)`);
+      break; // เหลือเวลาไม่พอรอโมเดลถัดไป
+    }
     try {
       const text = await callOpenRouter(model, messages, maxTokens, remaining);
       if (validate && !validate(text)) throw new Error(`Incomplete response (${model})`);
       return text;
-    } catch {
-      // ลองโมเดลถัดไปในสาย
+    } catch (e) {
+      // บันทึกสาเหตุ (ไม่มีคีย์/ข้อมูลผู้ใช้) เพื่อไล่ปัญหาใน log ของโฮสต์ แล้วลองโมเดลถัดไปในสาย
+      console.error("[ai] model failed:", e instanceof Error ? `${e.name}: ${e.message}` : String(e));
     }
   }
   return null;
