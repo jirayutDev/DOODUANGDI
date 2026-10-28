@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { getDb } from "@/db";
+import { aiStatus } from "@/lib/ai-provider";
 
 // ตรวจว่าเซิร์ฟเวอร์ต่อฐานข้อมูลได้ไหม (เปิด https://โดเมน/api/health) — ไม่เปิดเผยค่าลับ บอกแค่ผลและประเภทของปัญหา
 // ใช้หาสาเหตุเว็บค้าง/504: ถ้า db ไม่ ok ให้ดู DATABASE_URL บนโฮสต์ (ต้องเป็น pooler พอร์ต 6543)
@@ -26,8 +27,7 @@ export async function GET() {
       new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
     ]);
     // สถานะการตั้งค่า AI (ชื่อโมเดลไม่ใช่ความลับ ไม่เรียก AI จริงจึงไม่เสียเงิน)
-    const models = [process.env.OPENROUTER_MODEL || "anthropic/claude-haiku-4.5", ...(process.env.OPENROUTER_FALLBACK_MODELS ?? "").split(",").map((m) => m.trim()).filter(Boolean)];
-    return NextResponse.json({ ok: true, db: "ok", ms: Date.now() - t0, ai: { keyConfigured: !!process.env.OPENROUTER_API_KEY, models } });
+    return NextResponse.json({ ok: true, db: "ok", ms: Date.now() - t0, ai: aiStatus() });
   } catch (e) {
     console.error("[health] db check failed", e instanceof Error ? e.message : e);
     return NextResponse.json({ ok: false, db: "error", reason: classify(e), ms: Date.now() - t0 }, { status: 503 });

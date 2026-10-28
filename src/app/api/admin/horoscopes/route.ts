@@ -3,6 +3,8 @@ import { z } from "zod";
 import { getAdminUser } from "@/lib/admin";
 import { generateAllSigns, generateSign, isZodiacSign } from "@/lib/horoscopes";
 import { rateLimit } from "@/lib/rate-limit";
+import { getLastAiFailures } from "@/lib/mu-ai";
+import { aiStatus } from "@/lib/ai-provider";
 
 export const maxDuration = 60;
 
@@ -31,11 +33,11 @@ export async function POST(req: NextRequest) {
       // คำใบ้เมื่อสร้างไม่สำเร็จ (รายละเอียดจริงดูใน log ของเซิร์ฟเวอร์ ค้นคำว่า [ai])
       const hint =
         r.status === "failed"
-          ? process.env.OPENROUTER_API_KEY
-            ? "โมเดล AI ไม่ตอบหรือใช้เวลานานเกินกำหนด ลองตั้ง OPENROUTER_MODEL เป็นโมเดลที่เร็ว"
-            : "ยังไม่ได้ตั้ง OPENROUTER_API_KEY บนเซิร์ฟเวอร์"
+          ? aiStatus().keyConfigured
+            ? "โมเดล AI ไม่ตอบหรือใช้เวลานานเกินกำหนด ลองตั้ง AI_MODEL เป็นโมเดลที่เร็ว"
+            : "ยังไม่ได้ตั้ง AI_API_KEY (หรือ OPENROUTER_API_KEY) บนเซิร์ฟเวอร์"
           : undefined;
-      return NextResponse.json({ ...r, hint });
+      return NextResponse.json({ ...r, hint, reasons: r.status === "failed" ? getLastAiFailures() : undefined });
     }
     const result = await generateAllSigns(kind, { regenerate });
     return NextResponse.json(result, { status: result.failed.length ? 207 : 200 });

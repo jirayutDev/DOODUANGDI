@@ -1,0 +1,58 @@
+// ผู้ให้บริการ AI (API แบบเดียวกับ OpenAI: POST {baseUrl}/chat/completions) ตั้งผ่าน env เปลี่ยนเจ้าได้โดยไม่แก้โค้ด
+//   AI_BASE_URL / AI_API_KEY            = สายหลัก (แชท ดวง จับคู่ ฯลฯ) ไม่ตั้ง = ใช้ OpenRouter ด้วย OPENROUTER_API_KEY
+//   AI_MODEL / AI_FALLBACK_MODELS       = โมเดลหลัก/สำรอง (คั่นจุลภาค) ใช้ชื่อ OPENROUTER_MODEL / OPENROUTER_FALLBACK_MODELS แทนได้
+//   AI_VISION_BASE_URL / AI_VISION_API_KEY = สายอ่านรูปใบหน้า (โหงวเฮ้ง) ไม่ตั้ง = ใช้ OpenRouter เสมอ ไม่ส่งรูปใบหน้าไปเจ้าอื่นโดยอัตโนมัติ
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
+export interface AiProvider {
+  baseUrl: string;
+  apiKey: string | undefined;
+}
+
+const trim = (u: string) => u.trim().replace(/\/+$/, "");
+
+export function mainProvider(): AiProvider {
+  const baseUrl = trim(process.env.AI_BASE_URL || OPENROUTER_BASE_URL);
+  return { baseUrl, apiKey: process.env.AI_API_KEY || (baseUrl === OPENROUTER_BASE_URL ? process.env.OPENROUTER_API_KEY : undefined) };
+}
+
+export function visionProvider(): AiProvider {
+  if (process.env.AI_VISION_BASE_URL) {
+    return { baseUrl: trim(process.env.AI_VISION_BASE_URL), apiKey: process.env.AI_VISION_API_KEY };
+  }
+  return { baseUrl: OPENROUTER_BASE_URL, apiKey: process.env.OPENROUTER_API_KEY };
+}
+
+export function isOpenRouter(p: AiProvider): boolean {
+  return p.baseUrl === OPENROUTER_BASE_URL;
+}
+
+// ชื่อโมเดลต่างกันตามเจ้า: OpenRouter ใช้ "anthropic/claude-haiku-4.5" ส่วนเจ้าอื่นมักใช้ชื่อสั้น เช่น "claude-haiku-4-5-20251001"
+export function defaultModel(p: AiProvider): string {
+  return isOpenRouter(p) ? "anthropic/claude-haiku-4.5" : "claude-haiku-4-5-20251001";
+}
+
+const list = (v: string | undefined) =>
+  (v ?? "")
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+
+export function modelChain(): string[] {
+  const p = mainProvider();
+  const primary = process.env.AI_MODEL || process.env.OPENROUTER_MODEL || defaultModel(p);
+  const fallbacks = list(process.env.AI_FALLBACK_MODELS ?? process.env.OPENROUTER_FALLBACK_MODELS);
+  return [primary, ...fallbacks];
+}
+
+// สถานะการตั้งค่า (ไม่มีค่าลับ) ใช้ใน /api/health และข้อความแนะนำของหน้าแอดมิน
+export function aiStatus() {
+  const p = mainProvider();
+  let host = p.baseUrl;
+  try {
+    host = new URL(p.baseUrl).host;
+  } catch {
+    // ปล่อยตามที่ตั้งมา
+  }
+  return { provider: host, keyConfigured: !!p.apiKey, models: modelChain() };
+}

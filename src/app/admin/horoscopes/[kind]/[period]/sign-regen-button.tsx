@@ -20,7 +20,7 @@ export function SignRegenButton({ kind, sign, exists }: { kind: "daily" | "weekl
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "สร้างไม่สำเร็จ");
-      if (data.status === "failed") throw new Error(data.hint ?? "สร้างไม่สำเร็จ");
+      if (data.status === "failed") throw new Error(Array.isArray(data.reasons) && data.reasons.length ? data.reasons.join(" | ") : (data.hint ?? "สร้างไม่สำเร็จ"));
       toast.success(`สร้างราศี${sign}แล้ว`);
       router.refresh();
     } catch (err) {

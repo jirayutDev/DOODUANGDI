@@ -42,7 +42,8 @@ export function HoroscopeActions({ kind }: { kind: Kind }) {
           } else if (data.status === "created") created++;
           else if (data.status === "skipped") skipped++;
           else {
-            if (typeof data.hint === "string") lastError = data.hint;
+            if (Array.isArray(data.reasons) && data.reasons.length) lastError = String(data.reasons[0]);
+            else if (typeof data.hint === "string") lastError = data.hint;
             failed.push(sign);
           }
         } catch {

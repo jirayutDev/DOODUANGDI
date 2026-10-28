@@ -1,3 +1,4 @@
+import { mainProvider, modelChain, visionProvider, type AiProvider } from "@/lib/ai-provider";
 import { calculateBirthProfile, type BirthProfile } from "./astrology";
 import type { TarotCard } from "./tarot-data";
 
@@ -61,12 +62,7 @@ const BASE_SYSTEM_PROMPT = [
 ].join("\n");
 
 function getModelChain(): string[] {
-  const primary = process.env.OPENROUTER_MODEL || "anthropic/claude-haiku-4.5";
-  const fallbacks = (process.env.OPENROUTER_FALLBACK_MODELS ?? "")
-    .split(",")
-    .map((m) => m.trim())
-    .filter(Boolean);
-  return [primary, ...fallbacks];
+  return modelChain();
 }
 
 // content เป็น array ได้เมื่อต้องแนบรูป (ใช้กับฟีเจอร์สแกนหน้าดูโหงวเฮ้ง)
@@ -79,12 +75,12 @@ interface ChatMsg {
   content: string | ChatContentPart[];
 }
 
-async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: number, timeoutMs: number): Promise<string> {
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: number, timeoutMs: number, provider: AiProvider = mainProvider()): Promise<string> {
+  const res = await fetch(`${provider.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      authorization: `Bearer ${provider.apiKey}`,
       "http-referer": process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
       // header ต้องเป็น ASCII เท่านั้น (fetch จะ throw ถ้ามีอักษรไทย) ใช้ "DOODUANGD" แทนชื่อแบรนด์ไทย
       "x-title": "DOODUANGD",
@@ -100,7 +96,12 @@ async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: num
     signal: AbortSignal.timeout(timeoutMs),
   });
 
-  if (!res.ok) throw new Error(`OpenRouter API error (${model}): ${res.status}`);
+  if (!res.ok) {
+    // ข้อความ error จาก OpenRouter (เช่น โมเดลไม่มี/ถูกจำกัดการใช้) ไม่มีคีย์หรือข้อมูลผู้ใช้ ตัดให้สั้นก่อนบันทึก
+    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    const detail = body?.error?.message ? ` — ${String(body.error.message).slice(0, 140)}` : "";
+    throw new Error(`OpenRouter API error (${model}): ${res.status}${detail}`);
+  }
   const data = await res.json();
   const choice = data.choices?.[0];
   const text = choice?.message?.content;
@@ -123,6 +124,12 @@ async function callOpenRouter(model: string, messages: ChatMsg[], maxTokens: num
 // ไล่ตาม OPENROUTER_MODEL ก่อน แล้วค่อยลอง OPENROUTER_FALLBACK_MODELS ทีละตัวถ้าตัวหลักพังหรือโดน rate limit
 // คืนค่า null เมื่อไม่มี API key หรือทุกโมเดลในสายพังหมด ให้ผู้เรียกไป fallback เป็น rule-based เอง
 // validate (ไม่บังคับ): ตรวจว่าคำตอบครบตามรูปแบบ ถ้าไม่ผ่านถือว่าขาดตอน ให้ลองโมเดลถัดไปแทนที่จะส่งคำตอบขาดๆ ให้ผู้ใช้
+// สาเหตุที่ล้มของการเรียกล่าสุดในสายโมเดล (ให้หน้าแอดมินแสดงตอนสร้างดวงไม่สำเร็จ ไม่มีข้อมูลลับ)
+let lastAiFailures: string[] = [];
+export function getLastAiFailures(): string[] {
+  return lastAiFailures;
+}
+
 // deadlineMs = เวลารวมสูงสุดทั้งสาย (ค่าเริ่มต้น 22 วินาที เผื่อฟังก์ชันฝั่งผู้ใช้ที่ต้องเหลือเวลาคืน coin) งานเบื้องหลังอย่าง cron ส่งค่ามากกว่านี้ได้
 async function chatViaOpenRouter(
   messages: ChatMsg[],
@@ -130,8 +137,11 @@ async function chatViaOpenRouter(
   validate?: (text: string) => boolean,
   deadlineMs = 22_000
 ): Promise<string | null> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    console.error("[ai] OPENROUTER_API_KEY is not set");
+  lastAiFailures = [];
+  const provider = mainProvider();
+  if (!provider.apiKey) {
+    console.error("[ai] AI_API_KEY / OPENROUTER_API_KEY is not set");
+    lastAiFailures.push("ไม่ได้ตั้ง AI_API_KEY (หรือ OPENROUTER_API_KEY)");
     return null;
   }
 
@@ -140,15 +150,18 @@ async function chatViaOpenRouter(
     const remaining = deadlineMs - (Date.now() - startedAt);
     if (remaining < 2_500) {
       console.error(`[ai] out of time before trying ${model} (deadline ${deadlineMs}ms)`);
+      lastAiFailures.push(`หมดเวลาก่อนลอง ${model} (รวมทั้งสายเกิน ${Math.round(deadlineMs / 1000)} วินาที)`);
       break; // เหลือเวลาไม่พอรอโมเดลถัดไป
     }
     try {
-      const text = await callOpenRouter(model, messages, maxTokens, remaining);
+      const text = await callOpenRouter(model, messages, maxTokens, remaining, provider);
       if (validate && !validate(text)) throw new Error(`Incomplete response (${model})`);
       return text;
     } catch (e) {
       // บันทึกสาเหตุ (ไม่มีคีย์/ข้อมูลผู้ใช้) เพื่อไล่ปัญหาใน log ของโฮสต์ แล้วลองโมเดลถัดไปในสาย
-      console.error("[ai] model failed:", e instanceof Error ? `${e.name}: ${e.message}` : String(e));
+      const reason = e instanceof Error ? (e.name === "TimeoutError" ? `${model}: ตอบช้าเกินเวลา` : e.message) : String(e);
+      console.error("[ai] model failed:", reason);
+      lastAiFailures.push(reason.slice(0, 220));
     }
   }
   return null;
@@ -409,7 +422,8 @@ function normalizeFaceReading(raw: unknown): FaceReadingOutcome | null {
 }
 
 export async function generateFaceReading(imageDataUrl: string): Promise<FaceReadingOutcome> {
-  if (!process.env.OPENROUTER_API_KEY) return { ok: false, reason: "unavailable" };
+  const visionProv = visionProvider();
+  if (!visionProv.apiKey) return { ok: false, reason: "unavailable" };
 
   const partSpec = FACE_PARTS.map((p) => `"${p.key}": ${p.label} (${p.meaning})`).join(", ");
   const system = [
@@ -441,7 +455,7 @@ export async function generateFaceReading(imageDataUrl: string): Promise<FaceRea
     const remaining = 24_000 - (Date.now() - startedAt); // เหลือเวลาให้ route คืน coin ถ้าล้มเหลว
     if (remaining < 2_500) break;
     try {
-      const text = await callOpenRouter(model, messages, 1600, remaining);
+      const text = await callOpenRouter(model, messages, 1600, remaining, visionProv);
       const outcome = normalizeFaceReading(extractJson(text));
       if (outcome) return outcome;
     } catch {
