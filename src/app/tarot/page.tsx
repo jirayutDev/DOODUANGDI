@@ -22,7 +22,7 @@ export default function TarotIndexPage() {
       <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
         <div className="min-w-0 flex-1 basis-[300px]">
           <p className="text-sm text-muted-foreground">สำรับไพ่เทพฮินดู</p>
-          <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">ไพ่ 78 ใบ</h1>
+          <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">ไพ่ 78 ใบ</h1>
           <p className="text-sm text-muted-foreground">ความหมายเต็มสำรับ แบบเข้าใจง่าย แตะที่ไพ่เพื่ออ่าน</p>
         </div>
         <Link

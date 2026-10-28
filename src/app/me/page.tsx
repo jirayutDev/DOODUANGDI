@@ -64,7 +64,7 @@ export default function MePage() {
   return (
     <div className="mx-auto max-w-[1120px] px-[18px] pt-2 pb-10 md:px-10 md:pt-8 md:pb-20">
       <p className="text-sm text-muted-foreground">บัญชีของฉัน</p>
-      <h1 className="mt-0.5 text-[28px] leading-[1.9] font-bold break-all md:text-[40px]">
+      <h1 className="mt-0.5 text-[28px] leading-[1.55] font-bold break-all md:text-[40px]">
         {!loaded ? "\u00a0" : user ? displayName(user) : "ยังไม่ได้เข้าสู่ระบบ"}
       </h1>
       {loaded && !user && (
@@ -120,7 +120,7 @@ export default function MePage() {
         <div className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5">
           <div className="rounded-[18px] bg-card p-5">
             <p className="text-[17px] text-muted-foreground">แนะนำ</p>
-            <p className="mt-0.5 text-[30px] leading-[1.9] font-bold">เติม coin ใช้บริการ</p>
+            <p className="mt-0.5 text-[30px] leading-[1.55] font-bold">เติม coin ใช้บริการ</p>
             <p className="mt-1.5 mb-4 text-soft-text">ไม่มีค่ารายเดือน จ่ายเท่าที่ใช้ เริ่มต้น 29 บาท</p>
             <Link
               href="/coins"

@@ -141,7 +141,7 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-[1120px] px-[18px] pb-10 pt-2 md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">โปรไฟล์ของฉัน</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">
         {tab === "birth" ? "บอกวันเกิดหน่อย" : tab === "account" ? "ข้อมูลบัญชี" : tab === "summary" ? "ใช้ coin ไปกับอะไร" : "กิจกรรมของฉัน"}
       </h1>
       {tab === "birth" && (
@@ -254,7 +254,7 @@ export default function ProfilePage() {
 
         {result && (
           <div className="flex min-w-0 flex-1 basis-[320px] flex-col gap-3.5">
-            <h2 className="text-[26px] font-bold leading-[1.9]">ผลดวงโปรไฟล์ของเธอ</h2>
+            <h2 className="text-[26px] font-bold leading-[1.55]">ผลดวงโปรไฟล์ของเธอ</h2>
             <dl className="rounded-[18px] bg-card px-[18px] py-1">
               <ProfileStat label="ราศี" value={result.zodiacSign} />
               <ProfileStat label="วันเกิดไทย" value={`วัน${result.thaiBirthDay}`} />

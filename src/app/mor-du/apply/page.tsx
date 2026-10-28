@@ -45,7 +45,7 @@ export default function MorDuApplyPage() {
   return (
     <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">สำหรับหมอดู</p>
-      <h1 className="mt-0.5 mb-2 text-[28px] font-bold leading-[1.9] text-foreground md:text-[40px]">สมัครเป็นหมอดู</h1>
+      <h1 className="mt-0.5 mb-2 text-[28px] font-bold leading-[1.55] text-foreground md:text-[40px]">สมัครเป็นหมอดู</h1>
       <p className="mb-8 max-w-xl text-sm text-muted-foreground">
         เปิดร้านฟรี หลังผ่านการตรวจสอบตามมาตรฐาน Safe Mu — ใช้บัญชีเดียวกับที่ใช้ดูดวง เมื่อใบสมัครผ่านจะมีโปรไฟล์หมอดูเพิ่มเข้ามา
       </p>

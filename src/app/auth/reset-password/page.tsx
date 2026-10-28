@@ -57,7 +57,7 @@ export default function ResetPasswordPage() {
     <div className="mx-auto max-w-[1120px] px-[18px] pb-10 pt-4 md:px-10 md:pb-20 md:pt-8">
       <div className="flex max-w-[440px] flex-col gap-3.5">
         <p className="text-sm text-muted-foreground">บัญชีของฉัน</p>
-        <h1 className="text-[28px] font-bold leading-[1.9] md:text-[40px]">ตั้งรหัสผ่านใหม่</h1>
+        <h1 className="text-[28px] font-bold leading-[1.55] md:text-[40px]">ตั้งรหัสผ่านใหม่</h1>
 
         {state === "loading" && <p className="text-muted-foreground">กำลังตรวจสอบลิงก์...</p>}
 

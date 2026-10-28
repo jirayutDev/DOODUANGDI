@@ -99,7 +99,7 @@ export default function DicePage() {
   return (
     <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">เสี่ยงทาย</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">
         ลูกเต๋าพยากรณ์
       </h1>
       <p className="mt-2.5 max-w-[560px] text-soft-text">

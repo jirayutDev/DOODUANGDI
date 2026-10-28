@@ -83,7 +83,7 @@ export function PersonalityPicker({
   return (
     <div className="px-[18px] pb-10 pt-2 md:mx-auto md:max-w-[1120px] md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">บุคลิกและนิสัย</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">
         {config.title}
       </h1>
       <p className="mt-2.5 max-w-[560px] text-soft-text">{config.subtitle}</p>
@@ -148,8 +148,8 @@ export function PersonalityPicker({
           {selected ? (
             <>
               <p className="text-sm text-muted-foreground">คน{config.labelPrefix || "ปี"}</p>
-              <p className="-mt-1.5 text-[64px] font-bold leading-[1.9] text-primary">{selected}</p>
-              <blockquote className="rounded-[14px] bg-card px-4 py-3 text-lg leading-[1.9]">
+              <p className="-mt-1.5 text-[64px] font-bold leading-[1.55] text-primary">{selected}</p>
+              <blockquote className="rounded-[14px] bg-card px-4 py-3 text-lg leading-[1.55]">
                 {texts[`${categoryKey}:${selected}`]}
               </blockquote>
               <div className="mt-2 flex flex-wrap gap-3.5">

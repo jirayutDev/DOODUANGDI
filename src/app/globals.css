@@ -128,37 +128,37 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-card: 1.75rem;         /* มุมไพ่ โค้งกว่าปุ่มและกล่องทั่วไป */
 
-  --font-sans: var(--font-charm), "Charm", system-ui, sans-serif;
-  /* ใช้ฟอนต์เดียวทั้งเว็บ (Charm) — display/latin ชี้มาที่ sans เพื่อให้ class เดิมยังใช้ได้ */
+  --font-sans: var(--font-mali), "Mali", system-ui, sans-serif;
+  /* ใช้ฟอนต์เดียวทั้งเว็บ (Mali) — display/latin ชี้มาที่ sans เพื่อให้ class เดิมยังใช้ได้ */
   --font-display: var(--font-sans);
   --font-latin: var(--font-sans);
 
-  /* Charm มีสระบน/วรรณยุกต์สูงถึง ~1.5em และหางต่ำ ~0.5em ต้องการระยะบรรทัดอย่างน้อย ~1.9 ไม่ให้ตัวอักษรบรรทัดบนล่างทับกัน */
-  --leading-tight: 1.9;
-  --leading-snug: 1.9;
-  --leading-normal: 1.9;
-  --leading-relaxed: 2;
+  /* Mali มีสระบน/วรรณยุกต์ค่อนข้างสูง ใช้ระยะบรรทัด ~1.7 ให้ไม่ชนกันแต่ไม่โล่งเกิน */
+  --leading-tight: 1.6;
+  --leading-snug: 1.65;
+  --leading-normal: 1.7;
+  --leading-relaxed: 1.85;
 
-  /* ขนาดมาตรฐานของ Tailwind เล็กไปสำหรับ Charm (x-height ต่ำ) จึงขยายขึ้น และบังคับ line-height ให้สูงพอ
+  /* ขนาดตัวอักษรปรับให้อ่านสบายกับ Mali และบังคับ line-height ให้สูงพอ
      (ถ้าไม่ตั้ง text-sm/text-xs จะเขียน line-height ~1.4 ทับ ทำให้สระและวรรณยุกต์ชนบรรทัดบน) */
-  --text-xs: 0.9375rem;
-  --text-xs--line-height: 1.9;
-  --text-sm: 1.0625rem;
-  --text-sm--line-height: 1.9;
-  --text-base: 1.1875rem;
-  --text-base--line-height: 1.9;
-  --text-lg: 1.3125rem;
-  --text-lg--line-height: 1.9;
-  --text-xl: 1.5rem;
-  --text-xl--line-height: 1.9;
-  --text-2xl: 1.75rem;
-  --text-2xl--line-height: 1.9;
-  --text-3xl: 2.125rem;
-  --text-3xl--line-height: 1.9;
-  --text-4xl: 2.5rem;
-  --text-4xl--line-height: 1.9;
-  --text-5xl: 3.25rem;
-  --text-5xl--line-height: 1.9;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.7;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.7;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.7;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.55;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.55;
+  --text-2xl: 1.625rem;
+  --text-2xl--line-height: 1.55;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 1.55;
+  --text-4xl: 2.375rem;
+  --text-4xl--line-height: 1.55;
+  --text-5xl: 3rem;
+  --text-5xl--line-height: 1.55;
 }
 
 @layer base {
@@ -170,12 +170,12 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    line-height: 1.9; /* Charm สูงมาก ต้องการระยะบรรทัดมากกว่าฟอนต์ทั่วไป */
+    line-height: 1.7;
   }
   h1, h2, h3 {
     @apply font-display;
-    line-height: 1.9;
-    padding-top: 0.25em; /* หัวม้วนของ ไ/ใ สูงเกินกล่องบรรทัด ต้องเว้นด้านบนกันชนข้อความเหนือหัวข้อ */
+    line-height: 1.55;
+    padding-top: 0.15em; /* เว้นด้านบนเล็กน้อยกันสระ/วรรณยุกต์ของหัวข้อชนข้อความเหนือหัวข้อ */
   }
   :focus-visible {
     outline: 2px solid var(--ring);

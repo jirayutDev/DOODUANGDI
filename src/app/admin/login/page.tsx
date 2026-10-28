@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="mx-auto max-w-sm px-[18px] pb-10 pt-10">
-      <h1 className="mb-6 text-[28px] font-bold leading-[1.9]">เข้าสู่ระบบแอดมิน</h1>
+      <h1 className="mb-6 text-[28px] font-bold leading-[1.55]">เข้าสู่ระบบแอดมิน</h1>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <input
           value={username}

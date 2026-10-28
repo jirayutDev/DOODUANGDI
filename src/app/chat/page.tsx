@@ -93,7 +93,7 @@ function ChatPageInner() {
       <div className="flex flex-wrap items-start gap-x-16 gap-y-10">
         <div className="flex min-w-0 flex-[3_1_480px] flex-col gap-3.5">
           <p className="text-sm text-muted-foreground">ห้องสนทนา</p>
-          <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">คุยกับน้องมู</h1>
+          <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">คุยกับน้องมู</h1>
           <p className="text-sm text-muted-foreground">
             ตอบจากวันเกิดของเธอ · ถามข้อละ <Cost feature="chat" /> coin
           </p>
@@ -201,7 +201,7 @@ function ChatPageInner() {
         <aside className="hidden min-w-0 flex-[1_1_280px] flex-col gap-3.5 pt-[120px] md:flex">
           <div className="rounded-[18px] bg-secondary p-5">
             <p className="text-[17px] text-muted-foreground">จ่ายเท่าที่ใช้</p>
-            <p className="mt-0.5 text-[28px] font-bold leading-[1.9]">เติม coin เริ่มต้น 29 บาท</p>
+            <p className="mt-0.5 text-[28px] font-bold leading-[1.55]">เติม coin เริ่มต้น 29 บาท</p>
             <p className="mb-4 mt-1.5 text-soft-text">ไม่มีค่ารายเดือน ใช้บริการไหนก็จ่ายด้วย coin ตามที่ใช้ ดวงรายวัน/สัปดาห์/เดือนฟรีเสมอ</p>
             <Link
               href="/coins"

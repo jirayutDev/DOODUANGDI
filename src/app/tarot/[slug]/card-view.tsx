@@ -39,8 +39,8 @@ export function CardView({ card, children }: { card: TarotCard; children?: React
         <p className="text-lg text-muted-foreground">
           ใบที่ {card.number} · {card.nameEn} · {card.deity}
         </p>
-        <p className="text-[28px] font-semibold leading-[1.9] text-primary">{numeral}</p>
-        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">{card.nameTh}</h1>
+        <p className="text-[28px] font-semibold leading-[1.55] text-primary">{numeral}</p>
+        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">{card.nameTh}</h1>
         <p className="-mt-1.5 text-[19px] text-primary">{card.keywords}</p>
 
         <div role="group" aria-label="ทิศทางไพ่" className="mt-3.5 flex gap-6 border-b border-border">
@@ -54,7 +54,7 @@ export function CardView({ card, children }: { card: TarotCard; children?: React
           )}
         </div>
 
-        <blockquote className="mt-1.5 rounded-[14px] bg-secondary px-4 py-3 text-[19px] leading-[1.9]">
+        <blockquote className="mt-1.5 rounded-[14px] bg-secondary px-4 py-3 text-[19px] leading-[1.55]">
           {showRev ? card.reversedMeaning : card.uprightMeaning}
         </blockquote>
         {children}

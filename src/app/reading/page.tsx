@@ -136,7 +136,7 @@ export default function ReadingPage() {
         <div className="md:grid md:grid-cols-[1fr_1.1fr] md:items-start md:gap-14">
           <div>
             <p className="text-sm text-muted-foreground">ขั้นที่ 1 จาก 2</p>
-            <h1 className="mt-0.5 text-[26px] font-bold leading-[1.9] md:text-[34px]">วันนี้อยากถามอะไร</h1>
+            <h1 className="mt-0.5 text-[26px] font-bold leading-[1.55] md:text-[34px]">วันนี้อยากถามอะไร</h1>
             <label htmlFor="question" className="mt-3.5 block">
               <span className="mb-1.5 block text-sm text-muted-foreground">คำถาม (ไม่ใส่ก็ได้)</span>
               <textarea
@@ -218,7 +218,7 @@ export default function ReadingPage() {
       {phase === "picking" && (
         <>
           <p className="text-sm text-muted-foreground">ขั้นที่ 2 จาก 2 · {spread.name}</p>
-          <h1 className="mt-0.5 text-[26px] font-bold leading-[1.9] md:text-[34px]">เลือกไพ่ทีละใบ</h1>
+          <h1 className="mt-0.5 text-[26px] font-bold leading-[1.55] md:text-[34px]">เลือกไพ่ทีละใบ</h1>
           <div className="mt-3 flex items-center justify-between gap-3 rounded-[14px] bg-secondary px-4 py-3">
             <span className="flex flex-col leading-normal">
               <span className="text-[16px] text-muted-foreground">ใบถัดไป</span>
@@ -253,7 +253,7 @@ export default function ReadingPage() {
       {phase === "done" && result.length === needed && (
         <>
           <p className="text-sm text-muted-foreground">{spread.name}</p>
-          <h1 className="mb-5 mt-0.5 text-[26px] font-bold leading-[1.9] md:text-[34px]">ไพ่ของเธอ</h1>
+          <h1 className="mb-5 mt-0.5 text-[26px] font-bold leading-[1.55] md:text-[34px]">ไพ่ของเธอ</h1>
           <SpreadResult spread={spread} drawn={result} />
           <SummarySection loading={summaryLoading} summary={summary} />
           <p className="mt-3 text-center text-[16px] text-muted-foreground">
@@ -566,11 +566,12 @@ function CardSlot({
           <Badge variant="secondary" className="text-xs">
             ใบที่ {index}
           </Badge>
+          {/* Mali ใช้ line-height 1.7 (text-xs ≈ 22px/บรรทัดกับ Mali) ความสูงคงที่ต้องพอดีกับ 2 บรรทัด ไม่งั้นข้อความทับกัน */}
           {!compact && (
-            <p className="line-clamp-2 h-8 text-xs text-muted-foreground">{position}</p>
+            <p className="line-clamp-2 h-12 text-xs text-muted-foreground">{position}</p>
           )}
           {flipImage}
-          <div className="flex h-10 flex-col items-center justify-center">
+          <div className="flex h-14 flex-col items-center justify-center">
             <p className="line-clamp-1 font-display text-sm text-foreground">{card.nameTh}</p>
             <p className={cn("text-xs text-destructive", !reversed && "invisible")}>กลับหัว</p>
           </div>
@@ -589,7 +590,7 @@ function SummarySection({ loading, summary }: { loading: boolean; summary: strin
       {loading ? (
         <p className="mt-1.5 text-base">กำลังแปลผลไพ่ทั้งชุด...</p>
       ) : (
-        <p className="mt-1.5 whitespace-pre-line text-base leading-[1.9]">{summary}</p>
+        <p className="mt-1.5 whitespace-pre-line text-base leading-[1.55]">{summary}</p>
       )}
     </div>
   );

@@ -144,7 +144,7 @@ export default function CoinsPage() {
   return (
     <div className="mx-auto max-w-[1120px] px-[18px] pb-10 pt-2 md:px-10 md:pb-20 md:pt-8">
       <p className="text-sm text-muted-foreground">กระเป๋า coin</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">เติม coin ใช้บริการ</h1>
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">เติม coin ใช้บริการ</h1>
 
       <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[18px] bg-card p-5">
         <div className="flex items-center gap-4">
@@ -167,7 +167,7 @@ export default function CoinsPage() {
             <Image src={checkout.qrDataUrl} alt="PromptPay QR" fill className="object-contain" />
           </div>
           <div className="flex min-w-0 flex-1 basis-[260px] flex-col gap-3.5">
-            <h2 className="text-[26px] font-bold leading-[1.9]">
+            <h2 className="text-[26px] font-bold leading-[1.55]">
               เติม {checkout.coins} coin — {checkout.amount} บาท
             </h2>
             <p className="text-soft-text">

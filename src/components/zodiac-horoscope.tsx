@@ -112,7 +112,7 @@ export function ZodiacHoroscope({ kind }: { kind: HoroscopeKind }) {
               aria-pressed={on}
               onClick={() => setSign(z)}
               className={cn(
-                "min-h-[52px] rounded border py-1 text-[16px] leading-[1.9] transition-colors",
+                "min-h-[52px] rounded border py-1 text-[16px] leading-[1.55] transition-colors",
                 on
                   ? "border-primary bg-primary font-semibold text-primary-foreground"
                   : "border-line-soft bg-transparent text-foreground hover:border-primary"
@@ -146,7 +146,7 @@ export function ZodiacHoroscope({ kind }: { kind: HoroscopeKind }) {
             const sections = parseSections(data.content);
             if (!sections) {
               return (
-                <p className="mt-2 whitespace-pre-line text-[17px] leading-[1.9] text-soft-text">
+                <p className="mt-2 whitespace-pre-line text-[17px] leading-[1.55] text-soft-text">
                   {data.content.replace(/\*\*/g, "")}
                 </p>
               );
@@ -163,7 +163,7 @@ export function ZodiacHoroscope({ kind }: { kind: HoroscopeKind }) {
                     >
                       {s.label}
                     </dt>
-                    <dd className="mt-1 text-[17px] leading-[1.9] text-foreground">{s.text}</dd>
+                    <dd className="mt-1 text-[17px] leading-[1.55] text-foreground">{s.text}</dd>
                   </div>
                 ))}
               </dl>

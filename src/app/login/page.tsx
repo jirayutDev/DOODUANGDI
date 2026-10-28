@@ -92,7 +92,7 @@ function LoginForm() {
           </div>
 
           <p className="mt-2 text-sm text-muted-foreground">{signup ? "ยินดีที่ได้รู้จัก" : "ยินดีต้อนรับกลับมา"}</p>
-          <h1 className="-mt-2 text-[28px] font-bold leading-[1.9] md:text-[40px]">
+          <h1 className="-mt-2 text-[28px] font-bold leading-[1.55] md:text-[40px]">
             {signup ? "สมัครสมาชิก" : "เข้าสู่ระบบ"}
           </h1>
           <p className="-mt-1 text-sm text-muted-foreground">

@@ -83,7 +83,7 @@ export function DuangTopicClient({ slug }: { slug: string }) {
     return (
       <div className={wrap}>
         <p className="text-sm text-muted-foreground">เลือกราศีของคุณ</p>
-        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
+        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">
           {category.name}
         </h1>
         <p className="mt-2.5 max-w-[560px] text-soft-text">{category.blurb}</p>
@@ -97,7 +97,7 @@ export function DuangTopicClient({ slug }: { slug: string }) {
     return (
       <div className={wrap}>
         <p className="text-sm text-muted-foreground">ดวงเฉพาะเรื่อง</p>
-        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
+        <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">
           {category.name}
         </h1>
         <p className="mt-2.5 max-w-[560px] text-soft-text">{category.blurb}</p>
@@ -117,7 +117,7 @@ export function DuangTopicClient({ slug }: { slug: string }) {
   return (
     <div className={wrap}>
       <p className="text-sm text-muted-foreground">ดวงเฉพาะเรื่อง</p>
-      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.9] md:text-[40px]">
+      <h1 className="mt-0.5 text-[28px] font-bold leading-[1.55] md:text-[40px]">
         {category.name}
       </h1>
       <p className="mt-2.5 max-w-[560px] text-soft-text">{category.blurb}</p>

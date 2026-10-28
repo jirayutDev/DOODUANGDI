@@ -1,15 +1,16 @@
 // app/layout.tsx — โหลดฟอนต์ของธีมราตรีทอง และเปิดโหมดราตรีเป็นค่าเริ่มต้น
 import type { Metadata, Viewport } from "next";
-import { Charm } from "next/font/google";
+import { Mali } from "next/font/google";
 import "./globals.css";
 import { BottomBar, SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/sonner";
+import { CoinErrorDialog } from "@/components/coin-error-dialog";
 
-// ฟอนต์เดียวทั้งเว็บ: Charm ลายมือหัวม้วน
-const charm = Charm({
+// ฟอนต์เดียวทั้งเว็บ: Mali ลายมือกลมน่ารัก อ่านง่าย
+const mali = Mali({
   subsets: ["thai", "latin"],
-  weight: ["400", "700"],
-  variable: "--font-charm",
+  weight: ["400", "600", "700"],
+  variable: "--font-mali",
   display: "swap",
 });
 
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="th"
-      className={`dark ${charm.variable} h-full`}
+      className={`dark ${mali.variable} h-full`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col antialiased">
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </footer>
         <BottomBar />
         <Toaster />
+        <CoinErrorDialog />
       </body>
     </html>
   );

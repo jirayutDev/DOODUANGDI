@@ -1,27 +1,17 @@
 "use client";
 
-import { toast } from "sonner";
-import { loginHref } from "@/lib/safe-next";
-
 export interface CoinApiError {
   error?: string;
   code?: "login_required" | "insufficient_coins";
 }
 
-// href เป็นฟังก์ชันเพื่อให้ login_required จำหน้าปัจจุบันไว้ แล้วพากลับมาหลังล็อกอิน
-const ACTIONS = {
-  login_required: { href: () => loginHref(window.location.pathname + window.location.search), label: "เข้าสู่ระบบ" },
-  insufficient_coins: { href: () => "/coins", label: "เติม coin" },
-} as const;
+// เรียกเมื่อ API ตอบ 401/402/403 — คืน true ถ้าเป็น error เรื่องสิทธิ์/coin แล้วเปิดกล่องข้อความกลางจอ
+// (CoinErrorDialog ใน layout ฟังอีเวนต์นี้ แสดงปุ่มพาไปเข้าสู่ระบบหรือเติม coin)
+export const COIN_ERROR_EVENT = "coin:error";
 
-// เรียกเมื่อ API ตอบ 401/402/403 แล้วแสดง toast พร้อมปุ่มพาไปแก้ — คืน true ถ้าเป็น error เรื่องสิทธิ์/coin
 export function handleCoinError(data: CoinApiError | null | undefined): boolean {
   const code = data?.code;
-  if (!code || !(code in ACTIONS)) return false;
-  const a = ACTIONS[code];
-  toast.error(data?.error ?? "ใช้บริการนี้ไม่ได้", {
-    action: { label: a.label, onClick: () => window.location.assign(a.href()) },
-  });
+  if (code !== "login_required" && code !== "insufficient_coins") return false;
+  window.dispatchEvent(new CustomEvent<CoinApiError>(COIN_ERROR_EVENT, { detail: { code, error: data?.error } }));
   return true;
 }
-
